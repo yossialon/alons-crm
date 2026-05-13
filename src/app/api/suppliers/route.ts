@@ -1,28 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
+import { SupplierCreateSchema } from '@/lib/schemas/suppliers';
+import { listSuppliers, createSupplier } from '@/lib/db/repositories/suppliers';
+import { insertAuditLog } from '@/lib/db/repositories/audit';
+import { getOrgId } from '@/lib/tenant';
+import { zodError, getActorInfo } from '@/lib/api-utils';
 
 export async function GET() {
-  const suppliers = db.prepare('SELECT * FROM suppliers ORDER BY created_at DESC').all();
+  const suppliers = await listSuppliers(await getOrgId());
   return NextResponse.json(suppliers);
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const {
-    name, contact = '', phone = '', email = '',
-    category = 'Hardware', status = 'active', notes = '',
-  } = body;
+  const body = await req.json().catch(() => null);
+  const parsed = SupplierCreateSchema.safeParse(body);
+  if (!parsed.success) return zodError(parsed.error);
 
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+  const orgId = await getOrgId();
+  const { actorName, ip } = getActorInfo(req);
 
-  const id = uuidv4();
-  const lastContact = new Date().toISOString().split('T')[0];
+  const supplier = await createSupplier(orgId, parsed.data);
 
-  db.prepare(`
-    INSERT INTO suppliers (id, name, contact, phone, email, category, status, notes, last_contact)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name.trim(), contact, phone, email, category, status, notes, lastContact);
+  await insertAuditLog({
+    org_id: orgId, actor_name: actorName, action: 'create',
+    entity_type: 'supplier', entity_id: supplier.id as string, ip,
+  });
 
-  return NextResponse.json(db.prepare('SELECT * FROM suppliers WHERE id = ?').get(id), { status: 201 });
+  return NextResponse.json(supplier, { status: 201 });
 }

@@ -1,51 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
+import { checkRateLimit } from '@/lib/rateLimit';
+import { log } from '@/lib/logger';
 
-// Simple in-memory rate limiter: 30 Claude calls per IP per hour
-const rateMap = new Map<string, { count: number; reset: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const hourMs = 60 * 60 * 1000;
-  const entry = rateMap.get(ip);
-  if (!entry || now > entry.reset) {
-    rateMap.set(ip, { count: 1, reset: now + hourMs });
-    return true;
-  }
-  if (entry.count >= 30) return false;
-  entry.count++;
-  return true;
-}
+const RATE_LIMIT_MAX = process.env.CLAUDE_RATE_LIMIT_MAX ? parseInt(process.env.CLAUDE_RATE_LIMIT_MAX, 10) : 100;
+const RATE_LIMIT = { windowMs: 60 * 60 * 1000, max: RATE_LIMIT_MAX };
 
 export async function POST(req: NextRequest) {
-  // Middleware already verified the session; this is defense-in-depth
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'ANTHROPIC_API_KEY is not set in .env.local' },
-      { status: 500 }
-    );
+  if (!apiKey || apiKey.includes('PASTE_YOUR_NEW_KEY')) {
+    log.error('ANTHROPIC_API_KEY is not configured');
+    return NextResponse.json({ error: 'AI service is not configured' }, { status: 500 });
   }
 
-  const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'local';
-  if (!checkRateLimit(ip)) {
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+    req.headers.get('x-real-ip') ??
+    'local';
+
+  const allowed = await checkRateLimit(`${ip}:claude`, RATE_LIMIT);
+  if (!allowed) {
     return NextResponse.json(
-      { error: 'Rate limit exceeded. Max 30 AI requests per hour per IP.' },
+      { error: `Rate limit exceeded. Max ${RATE_LIMIT_MAX} AI requests per hour.` },
       { status: 429 }
     );
   }
 
-  const body = await req.json();
+  let body: { model?: string; messages?: unknown[]; max_tokens?: number } & Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-  const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01',
-      'x-api-key': apiKey,
+  return Sentry.startSpan(
+    {
+      name: 'anthropic.messages.create',
+      op: 'gen_ai.invoke_agent',
+      attributes: {
+        'gen_ai.system': 'anthropic',
+        'gen_ai.request.model': body.model ?? 'unknown',
+        'gen_ai.request.max_tokens': body.max_tokens ?? 0,
+      },
     },
-    body: JSON.stringify(body),
-  });
+    async (span) => {
+      try {
+        const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'anthropic-version': '2023-06-01',
+            'x-api-key': apiKey,
+          },
+          body: JSON.stringify(body),
+        });
 
-  const data = await upstream.json();
-  return NextResponse.json(data, { status: upstream.status });
+        const data = (await upstream.json()) as {
+          usage?: { input_tokens?: number; output_tokens?: number };
+        };
+
+        if (data.usage) {
+          span.setAttributes({
+            'gen_ai.usage.input_tokens': data.usage.input_tokens ?? 0,
+            'gen_ai.usage.output_tokens': data.usage.output_tokens ?? 0,
+          });
+        }
+
+        if (!upstream.ok) {
+          span.setStatus({ code: 2, message: `HTTP ${upstream.status}` });
+        }
+
+        return NextResponse.json(data, { status: upstream.status });
+      } catch (err) {
+        span.setStatus({ code: 2, message: String(err) });
+        log.error('Anthropic upstream request failed', err);
+        return NextResponse.json({ error: 'AI service unavailable' }, { status: 502 });
+      }
+    }
+  );
 }

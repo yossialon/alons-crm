@@ -27,7 +27,7 @@ const STATUS_ORDER: Array<Supplier['status']> = ['active', 'pending', 'inactive'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function relativeDate(dateStr: string): string {
+function relativeDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;

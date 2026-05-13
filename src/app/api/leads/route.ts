@@ -1,39 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
-
-function sanitizeUrl(raw: string): string {
-  if (!raw) return '';
-  try {
-    const url = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
-    if (url.protocol === 'https:' || url.protocol === 'http:') return url.toString();
-  } catch {}
-  return '';
-}
+import { LeadCreateSchema } from '@/lib/schemas/leads';
+import { listLeads, createLead } from '@/lib/db/repositories/leads';
+import { insertAuditLog } from '@/lib/db/repositories/audit';
+import { getOrgId } from '@/lib/tenant';
+import { zodError, getActorInfo } from '@/lib/api-utils';
 
 export async function GET() {
-  const leads = db.prepare('SELECT * FROM leads ORDER BY created_at DESC').all();
-  return NextResponse.json(leads);
+  try {
+    const leads = await listLeads(await getOrgId());
+    return NextResponse.json(leads);
+  } catch (err) {
+    console.error('[GET /api/leads]', err);
+    return NextResponse.json({ error: 'Failed to fetch leads' }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const {
-    name, phone, email = '', type = 'Homeowner', area = 'Boca Raton',
-    status = 'new', source = 'Manual', notes = '',
-    website = '', rating = '', potential = 'medium',
-  } = body;
+  try {
+    const body = await req.json().catch(() => null);
+    const parsed = LeadCreateSchema.safeParse(body);
+    if (!parsed.success) return zodError(parsed.error);
 
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  if (!phone?.trim()) return NextResponse.json({ error: 'Phone is required' }, { status: 400 });
+    const orgId = await getOrgId();
+    const { actorName, ip } = getActorInfo(req);
 
-  const id = uuidv4();
-  const date = new Date().toISOString().split('T')[0];
+    const lead = await createLead(orgId, parsed.data);
 
-  db.prepare(`
-    INSERT INTO leads (id, name, phone, email, type, area, status, source, notes, website, rating, potential, date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, name.trim(), phone.trim(), email, type, area, status, source, notes, sanitizeUrl(website), rating, potential, date);
+    await insertAuditLog({
+      org_id: orgId, actor_name: actorName, action: 'create',
+      entity_type: 'lead', entity_id: lead.id as string, ip,
+    });
 
-  return NextResponse.json(db.prepare('SELECT * FROM leads WHERE id = ?').get(id), { status: 201 });
+    return NextResponse.json(lead, { status: 201 });
+  } catch (err) {
+    console.error('[POST /api/leads]', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to create lead' },
+      { status: 500 }
+    );
+  }
 }

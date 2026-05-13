@@ -1,4 +1,6 @@
 'use client';
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { Lead, Supplier, ScanResult, ToastState } from '@/types';
 import {
@@ -16,11 +18,26 @@ import LeadsTab from '@/components/tabs/LeadsTab';
 import FindLeadsTab from '@/components/tabs/FindLeadsTab';
 import AutoScanTab, { useAutoScan } from '@/components/tabs/AutoScanTab';
 import SuppliersTab from '@/components/tabs/SuppliersTab';
-import { Settings, Users, Building2 } from 'lucide-react';
+import KanbanTab from '@/components/tabs/KanbanTab';
+import TasksTab from '@/components/tabs/TasksTab';
+import ProjectsTab from '@/components/tabs/ProjectsTab';
+import AnalyticsTab from '@/components/tabs/AnalyticsTab';
+import CustomersTab from '@/components/tabs/CustomersTab';
+import SocialTab from '@/components/tabs/SocialTab';
+import OutreachTab from '@/components/tabs/OutreachTab';
+import SettingsTab from '@/components/tabs/SettingsTab';
+import { Settings, UserCheck } from 'lucide-react';
 
 export default function DashboardPage() {
   // ── Tab context (replaces local tab state) ─────────────────────────────────
-  const { tab, setAutoScanBadge, setHeaderAction } = useTab();
+  const { tab, setTab, setAutoScanBadge, setHeaderAction } = useTab();
+
+  // Switch to the tab specified in the URL (e.g. after OAuth redirect ?tab=social)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlTab = params.get('tab');
+    if (urlTab) setTab(urlTab as Parameters<typeof setTab>[0]);
+  }, [setTab]);
 
   // ── Local state ────────────────────────────────────────────────────────────
   const [leads, setLeads]             = useState<Lead[]>([]);
@@ -43,7 +60,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const btnClass =
       'inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 shadow-sm transition-colors';
-    if (tab === 'leads') {
+    if (tab === 'leads' || tab === 'kanban') {
       setHeaderAction(
         <button className={btnClass} onClick={() => setShowAddLead(true)}>
           + Add Lead
@@ -186,11 +203,16 @@ export default function DashboardPage() {
           />
         )}
         {tab === 'find' && (
-          <FindLeadsTab onImport={handleImportFindLead} onMessage={(lead) => setMsgLead(lead as Lead)} />
+          <FindLeadsTab
+            existingLeads={leads}
+            onImport={handleImportFindLead}
+            onMessage={(lead) => setMsgLead(lead as Lead)}
+          />
         )}
         {tab === 'auto' && (
           <AutoScanTab
-            scanResults={scanResults} autoEnabled={autoEnabled}
+            scanResults={scanResults} existingLeads={leads}
+            autoEnabled={autoEnabled}
             scanning={scanning} scanProgress={scanProgress} nextScanIn={nextScanIn}
             onImport={handleImportScan} onMessage={setMsgLead}
             onClear={handleClearScans} onScanNow={runScan}
@@ -203,10 +225,24 @@ export default function DashboardPage() {
           />
         )}
 
+        {/* ── New feature tabs ── */}
+        {tab === 'kanban' && (
+          <KanbanTab
+            leads={leads}
+            onStatusChange={handleStatusChange}
+            onEdit={setEditLead}
+          />
+        )}
+        {tab === 'tasks'     && <TasksTab />}
+        {tab === 'projects'  && <ProjectsTab />}
+        {tab === 'analytics' && <AnalyticsTab leads={leads} />}
+        {tab === 'customers' && <CustomersTab />}
+        {tab === 'social'    && <SocialTab />}
+        {tab === 'outreach'  && <OutreachTab leads={leads.map((l) => ({ id: l.id, name: l.name }))} />}
+
         {/* ── Placeholder tabs ── */}
-        {tab === 'customers' && <PlaceholderPage icon={<Building2 size={40} />} title="Customers" desc="Track your homeowner and B2B client relationships. Coming soon." />}
-        {tab === 'employees' && <PlaceholderPage icon={<Users size={40} />} title="Employees" desc="Manage your team, assign leads, and track performance. Coming soon." />}
-        {tab === 'settings'  && <PlaceholderPage icon={<Settings size={40} />} title="Settings" desc="Account details, notification preferences, and integrations. Coming soon." />}
+        {tab === 'employees' && <PlaceholderPage icon={<UserCheck size={40} />} title="Employees" desc="Manage your team, assign leads, and track performance. Coming soon." />}
+        {tab === 'settings'  && <SettingsTab />}
       </div>
 
       {/* ── Modals ── */}

@@ -4,11 +4,17 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 export type AppTab =
   | 'dashboard'
   | 'leads'
+  | 'kanban'
   | 'find'
   | 'auto'
   | 'customers'
+  | 'projects'
+  | 'tasks'
   | 'suppliers'
+  | 'analytics'
   | 'employees'
+  | 'social'
+  | 'outreach'
   | 'settings';
 
 interface TabContextValue {

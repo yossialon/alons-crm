@@ -6,15 +6,66 @@
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
   html { -webkit-font-smoothing: antialiased; }
-  body { @apply bg-slate-50 text-slate-900; }
+
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  }
+
   a { text-decoration: none; }
+
   select:focus, input:focus, textarea:focus {
     outline: none;
     border-color: #92400E !important;
   }
+  .dark select:focus, .dark input:focus, .dark textarea:focus {
+    border-color: #D97706 !important;
+  }
+
+  /* iOS safe area for bottom nav */
+  .safe-area-pb { padding-bottom: env(safe-area-inset-bottom); }
 }
 
-/* ── Animations referenced by inline-style components ── */
+/* ── Form + button utility classes ── */
+@layer components {
+  .label {
+    @apply block text-[10px] font-bold uppercase tracking-widest text-slate-400
+           dark:text-slate-500 mb-1.5;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 text-sm border rounded-xl transition-all
+           bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-amber-300/50 focus:border-amber-400
+           dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100
+           dark:placeholder:text-slate-500 dark:focus:border-amber-500 dark:focus:ring-amber-500/20;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 rounded-xl text-sm font-semibold text-white bg-brand-700
+           hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed
+           transition-all shadow-sm;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 rounded-xl text-sm font-semibold transition-all
+           text-slate-500 bg-slate-100 hover:bg-slate-200
+           dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700;
+  }
+
+  /* Skeleton loading shimmer */
+  .skeleton {
+    @apply rounded-xl overflow-hidden relative;
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  .dark .skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+  }
+}
+
+/* ── Animations ── */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -22,4 +73,8 @@
   0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
   70%  { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
   100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

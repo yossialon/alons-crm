@@ -1,33 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { SupplierUpdateSchema } from '@/lib/schemas/suppliers';
+import { findSupplierById, updateSupplier, deleteSupplier } from '@/lib/db/repositories/suppliers';
+import { insertAuditLog } from '@/lib/db/repositories/audit';
+import { getOrgId } from '@/lib/tenant';
+import { zodError, getActorInfo } from '@/lib/api-utils';
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function PUT(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
-  const body = await req.json();
-  const { name, contact, phone, email, category, status, notes } = body;
+  const body = await req.json().catch(() => null);
+  const parsed = SupplierUpdateSchema.safeParse(body);
+  if (!parsed.success) return zodError(parsed.error);
 
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+  const orgId = await getOrgId();
+  const { actorName, ip } = getActorInfo(req);
 
-  db.prepare(`
-    UPDATE suppliers
-    SET name=?, contact=?, phone=?, email=?, category=?, status=?, notes=?,
-        updated_at=datetime('now')
-    WHERE id=?
-  `).run(name.trim(), contact, phone, email, category, status, notes, id);
+  const before = await findSupplierById(orgId, id);
+  if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(id);
-  if (!supplier) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const supplier = await updateSupplier(orgId, id, parsed.data);
+
+  await insertAuditLog({
+    org_id: orgId, actor_name: actorName, action: 'update',
+    entity_type: 'supplier', entity_id: id,
+    diff: { before, after: supplier },
+    ip,
+  });
+
   return NextResponse.json(supplier);
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
-  db.prepare('DELETE FROM suppliers WHERE id = ?').run(id);
+  const orgId = await getOrgId();
+  const { actorName, ip } = getActorInfo(req);
+
+  const before = await findSupplierById(orgId, id);
+  if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  await deleteSupplier(orgId, id);
+
+  await insertAuditLog({
+    org_id: orgId, actor_name: actorName, action: 'delete',
+    entity_type: 'supplier', entity_id: id,
+    diff: { deleted: before },
+    ip,
+  });
+
   return NextResponse.json({ ok: true });
 }

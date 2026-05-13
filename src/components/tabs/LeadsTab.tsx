@@ -8,6 +8,7 @@ import {
 import { Lead } from '@/types';
 import { LEAD_TYPES } from '@/lib/constants';
 import { sourceIcon } from '@/components/ui/Badges';
+import LeadAIInsights from '@/components/LeadAIInsights';
 
 // ── Status / Type / Potential config ─────────────────────────────────────────
 
@@ -35,7 +36,7 @@ const DATE_RANGES = ['All time', 'Today', 'This week', 'This month'] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function relativeDate(dateStr?: string) {
+function relativeDate(dateStr?: string | null) {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '—';
@@ -47,7 +48,7 @@ function relativeDate(dateStr?: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function matchDate(dateStr: string | undefined, range: string) {
+function matchDate(dateStr: string | undefined | null, range: string) {
   if (range === 'All time') return true;
   const d = new Date(dateStr || '');
   if (isNaN(d.getTime())) return false;
@@ -258,6 +259,11 @@ function QuickViewPanel({
               </div>
             </div>
           )}
+
+          {/* AI Insights */}
+          <div className="border-t border-slate-100">
+            <LeadAIInsights lead={lead} />
+          </div>
         </div>
 
         {/* Footer actions */}

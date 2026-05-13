@@ -79,6 +79,9 @@ web_modules/
 .env.production.local
 .env.local
 
+# Sentry build plugin auth token — contains secret, never commit
+.env.sentry-build-plugin
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

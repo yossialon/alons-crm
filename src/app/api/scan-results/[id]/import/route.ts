@@ -1,31 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
-import { v4 as uuidv4 } from 'uuid';
+import { importScanResultAsLead } from '@/lib/db/repositories/scan-results';
+import { insertAuditLog } from '@/lib/db/repositories/audit';
+import { getOrgId } from '@/lib/tenant';
+import { getActorInfo } from '@/lib/api-utils';
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function POST(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
+  const orgId = await getOrgId();
+  const { actorName, ip } = getActorInfo(req);
 
-  const scan = db.prepare('SELECT * FROM scan_results WHERE id = ?').get(id) as Record<string, string> | undefined;
-  if (!scan) return NextResponse.json({ error: 'Scan result not found' }, { status: 404 });
+  const result = await importScanResultAsLead(orgId, id);
 
-  const existing = db.prepare('SELECT id FROM leads WHERE name = ?').get(scan.name);
-  if (existing) return NextResponse.json({ error: 'Already imported' }, { status: 409 });
+  if ('error' in result) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
 
-  const leadId = uuidv4();
-  db.prepare(`
-    INSERT INTO leads (id, name, phone, email, type, area, status, source, notes, website, rating, potential, date)
-    VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?)
-  `).run(
-    leadId, scan.name, scan.phone, scan.email,
-    scan.type, scan.area, scan.source, scan.notes,
-    scan.website, scan.rating, scan.potential,
-    new Date().toISOString().split('T')[0],
-  );
+  await insertAuditLog({
+    org_id: orgId, actor_name: actorName, action: 'import',
+    entity_type: 'lead', entity_id: result.leadId,
+    diff: { from_scan: id },
+    ip,
+  });
 
-  db.prepare('UPDATE scan_results SET imported = 1 WHERE id = ?').run(id);
-
-  return NextResponse.json({ ok: true, leadId });
+  return NextResponse.json({ ok: true, leadId: result.leadId });
 }

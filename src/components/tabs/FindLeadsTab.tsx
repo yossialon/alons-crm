@@ -2,16 +2,13 @@
 import { useState } from 'react';
 import { callClaude, parseLeadsFromText } from '@/lib/api';
 import { buildContractorPrompt, buildHomeownerPrompt, buildDeveloperPrompt, AREAS } from '@/lib/constants';
-import LeadCard from '../LeadCard';
+import { isDuplicate, computeLeadScore } from '@/lib/scoring';
+import LeadCard, { LeadCardData } from '../LeadCard';
 import Spinner from '../ui/Spinner';
-
-const inp: React.CSSProperties = {
-  width: '100%', padding: '9px 12px', border: '1.5px solid #E2E8F0',
-  borderRadius: 8, fontSize: 13, fontFamily: 'inherit', color: '#0F172A',
-  background: '#F8FAFC', outline: 'none',
-};
+import { Search, MapPin } from 'lucide-react';
 
 interface Props {
+  existingLeads?: { phone?: string; name: string }[];
   onImport: (lead: object) => Promise<void>;
   onMessage: (lead: object) => void;
 }
@@ -24,112 +21,153 @@ const PROMPT_MAP: Record<FindType, (area: string) => string> = {
   Developers:  buildDeveloperPrompt,
 };
 
-const SEARCH_LABELS: Record<FindType, string> = {
-  Contractors: '🔍 Will search: Google Maps · Houzz · Angi/HomeAdvisor · Facebook · BBB',
-  Homeowners:  '🔍 Will search: Nextdoor · Reddit · Houzz boards · Facebook groups · County permits',
-  Developers:  '🔍 Will search: County permit records · New construction · LinkedIn · NAHB/HBA · Local news',
+const SEARCH_HINTS: Record<FindType, string> = {
+  Contractors: 'Google Maps · Houzz · Angi · Facebook · BBB',
+  Homeowners:  'Nextdoor · Reddit · Houzz boards · Facebook groups · Permits',
+  Developers:  'Permit records · LinkedIn · NAHB/HBA · Local news',
 };
 
-export default function FindLeadsTab({ onImport, onMessage }: Props) {
-  const [findType, setFindType] = useState<FindType>('Contractors');
-  const [area, setArea]         = useState('Boca Raton');
-  const [loading, setLoading]   = useState(false);
-  const [results, setResults]   = useState<object[]>([]);
-  const [log, setLog]           = useState('');
+const TYPE_ICONS: Record<FindType, string> = {
+  Contractors: '🔨',
+  Homeowners:  '🏠',
+  Developers:  '🏗️',
+};
+
+export default function FindLeadsTab({ existingLeads = [], onImport, onMessage }: Props) {
+  const [findType,   setFindType]   = useState<FindType>('Contractors');
+  const [area,       setArea]       = useState('Boca Raton');
+  const [loading,    setLoading]    = useState(false);
+  const [results,    setResults]    = useState<LeadCardData[]>([]);
+  const [importedSet, setImportedSet] = useState<Set<number>>(new Set());
+  const [log,        setLog]        = useState('');
 
   const search = async () => {
     setLoading(true);
     setResults([]);
-    setLog(`Searching for ${findType.toLowerCase()} in ${area}…`);
+    setImportedSet(new Set());
+    setLog('');
     try {
       const text   = await callClaude(PROMPT_MAP[findType](area));
-      const parsed = parseLeadsFromText(text);
+      const parsed = parseLeadsFromText(text) as LeadCardData[];
       if (parsed.length > 0) {
         setResults(parsed);
-        setLog(`Found ${parsed.length} leads in ${area}.`);
+        setLog(`Found ${parsed.length} leads in ${area}`);
       } else {
-        setLog('No structured results. Raw response shown below.');
-        setResults([{ name: 'Raw AI Response', phone: '', email: '', website: '', area, type: findType.slice(0, -1), source: 'AI', potential: 'medium', notes: text.slice(0, 400) }]);
+        setLog('No structured results — try a different area or type.');
+        setResults([{
+          name: 'Raw AI Response', phone: '', email: '', website: '',
+          area, type: findType.slice(0, -1), source: 'AI', potential: 'medium',
+          rating: '', notes: text.slice(0, 400),
+        }]);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setLog(`Search failed: ${msg}`);
+      setLog(`Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
     setLoading(false);
   };
 
+  const handleImport = async (lead: LeadCardData, idx: number) => {
+    await onImport(lead);
+    setImportedSet((prev) => new Set(prev).add(idx));
+  };
+
+  // Sort by score descending
+  const sorted = [...results].sort((a, b) => computeLeadScore(b) - computeLeadScore(a));
+
   return (
-    <div>
-      <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 14, padding: 20, marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 4 }}>Real-Time Lead Search</div>
-        <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16 }}>
-          AI searches Google Maps, Nextdoor, Reddit, Houzz, Permit Records & more to find real leads with actual contact info
-        </div>
+    <div className="space-y-5">
+      {/* Search card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <p className="font-bold text-sm text-slate-800 mb-0.5">Real-Time Lead Search</p>
+        <p className="text-xs text-slate-400 mb-4">
+          AI searches Google Maps, Nextdoor, Reddit, Houzz, permit records &amp; more for real leads with contact info
+        </p>
 
         {/* Type toggle */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, fontWeight: 600, color: '#64748B', display: 'block', marginBottom: 6, letterSpacing: 0.3 }}>LEAD TYPE</label>
-          <div style={{ display: 'flex', gap: 6 }}>
+        <div className="mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Lead Type</p>
+          <div className="flex gap-2">
             {(['Contractors', 'Homeowners', 'Developers'] as FindType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setFindType(t)}
-                style={{
-                  flex: 1, padding: '8px 4px', fontWeight: 600, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
-                  background: findType === t ? '#92400E' : '#F8FAFC',
-                  color:      findType === t ? '#fff'    : '#475569',
-                  border:    `1.5px solid ${findType === t ? '#92400E' : '#E2E8F0'}`,
-                  borderRadius: 8, transition: 'all .15s',
-                }}
+                className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl border transition-all ${
+                  findType === t
+                    ? 'bg-brand-700 text-white border-brand-700 shadow-sm'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
               >
-                {t === 'Contractors' ? '🔨' : t === 'Homeowners' ? '🏠' : '🏗️'} {t}
+                {TYPE_ICONS[t]} {t}
               </button>
             ))}
           </div>
         </div>
 
         {/* Area + search */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: '0 0 200px' }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#64748B', display: 'block', marginBottom: 5, letterSpacing: 0.3 }}>CITY / AREA</label>
-            <select value={area} onChange={(e) => setArea(e.target.value)} style={inp}>
-              {AREAS.map((a) => <option key={a}>{a}</option>)}
-            </select>
+        <div className="flex gap-3 items-end flex-wrap">
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">City / Area</p>
+            <div className="relative">
+              <MapPin size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <select
+                value={area}
+                onChange={(e) => setArea(e.target.value)}
+                className="w-full pl-7 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-300/50 focus:border-amber-400 transition-all appearance-none"
+              >
+                {AREAS.map((a) => <option key={a}>{a}</option>)}
+              </select>
+            </div>
           </div>
           <button
             onClick={search}
             disabled={loading}
-            style={{ background: loading ? '#E2E8F0' : '#92400E', color: loading ? '#94A3B8' : '#fff', border: 'none', borderRadius: 8, padding: '10px 28px', fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontSize: 14, fontFamily: 'inherit', height: 40, boxShadow: loading ? 'none' : '0 4px 14px rgba(146,64,14,.3)' }}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold text-white bg-brand-700 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
           >
-            {loading ? 'Searching…' : 'Search →'}
+            <Search size={14} />
+            {loading ? 'Searching…' : 'Search'}
           </button>
         </div>
 
-        <div style={{ marginTop: 12, fontSize: 12, color: '#64748B', background: '#F8FAFC', padding: '10px 14px', borderRadius: 8 }}>
-          {SEARCH_LABELS[findType]}
-        </div>
+        <p className="mt-3 text-[11px] text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
+          🔍 Searches: {SEARCH_HINTS[findType]}
+        </p>
       </div>
 
       {loading && <Spinner label={`Searching for ${findType.toLowerCase()} in ${area}…`} />}
+
       {!loading && log && (
-        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, padding: '8px 14px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0' }}>
+        <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
           {log}
-        </div>
+        </p>
       )}
-      {!loading && results.length > 0 && (
+
+      {!loading && sorted.length > 0 && (
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#0F172A', marginBottom: 12 }}>
-            {results.length} leads found in {area}
+          <div className="flex items-center justify-between mb-3">
+            <p className="font-bold text-sm text-slate-800">
+              {sorted.length} leads found in {area}
+            </p>
+            <p className="text-xs text-slate-400">Sorted by score</p>
           </div>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {results.map((r, i) => (
-              <LeadCard
-                key={i}
-                lead={r as Parameters<typeof LeadCard>[0]['lead']}
-                onImport={() => onImport(r)}
-                onMessage={() => onMessage(r)}
-              />
-            ))}
+          <div className="space-y-2">
+            {sorted.map((r, i) => {
+              const origIdx = results.indexOf(r);
+              const alreadyImported = importedSet.has(origIdx);
+              const inCRM = isDuplicate(
+                { phone: r.phone, name: r.name },
+                existingLeads,
+              );
+              return (
+                <LeadCard
+                  key={i}
+                  lead={r}
+                  imported={alreadyImported}
+                  isExisting={inCRM}
+                  onImport={!alreadyImported && !inCRM ? () => handleImport(r, origIdx) : undefined}
+                  onMessage={!inCRM ? () => onMessage(r) : undefined}
+                />
+              );
+            })}
           </div>
         </div>
       )}
