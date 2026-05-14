@@ -26,7 +26,7 @@ export const AUTO_SEARCH_AREAS = [
 
 export const AUTO_INTERVAL_MS = 5 * 60 * 60 * 1000; // 5 hours
 
-export const MODEL = 'claude-sonnet-4-5-20250929';
+export const MODEL = 'claude-sonnet-4-6';
 
 export function buildContractorPrompt(area: string) {
   return `You are a lead generation specialist for Alon's Kitchens, a custom cabinet manufacturer in South Florida. Use web search to find REAL, CURRENTLY ACTIVE kitchen remodeling contractors and general contractors in ${area}, Florida.
