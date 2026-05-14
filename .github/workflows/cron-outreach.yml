@@ -1,0 +1,32 @@
+name: Hourly Outreach Cron
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # every hour, on the hour (UTC)
+  workflow_dispatch:        # allow manual trigger from GitHub Actions UI
+
+jobs:
+  trigger:
+    name: Trigger /api/cron/outreach
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Call cron endpoint
+        run: |
+          HTTP_STATUS=$(curl --silent --output /tmp/response.txt --write-out "%{http_code}" \
+            --max-time 60 \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron/outreach")
+
+          echo "Response body:"
+          cat /tmp/response.txt
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "❌ Cron failed with HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+          echo "✅ Cron completed with HTTP $HTTP_STATUS"

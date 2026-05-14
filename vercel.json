@@ -1,8 +1,7 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/outreach",
-      "schedule": "0 * * * *"
+  "functions": {
+    "src/app/api/cron/outreach/route.ts": {
+      "maxDuration": 60
     }
-  ]
+  }
 }
