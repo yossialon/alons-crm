@@ -43,7 +43,7 @@ export async function callClaude(prompt: string): Promise<string> {
     {
       ...json({
         model: MODEL,
-        max_tokens: 1000,
+        max_tokens: 4000,
         tools: [{ type: 'web_search_20260209', name: 'web_search' }],
         messages: [{ role: 'user', content: prompt }],
       }),
