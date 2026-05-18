@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Lead, Supplier, ScanResult, ToastState } from '@/types';
+import { Lead, Supplier, ToastState } from '@/types';
 import {
   getLeads, createLead, updateLead, deleteLead,
   getSuppliers, createSupplier, updateSupplier, deleteSupplier,
-  getScanResults, clearScanResults, importScanResult,
 } from '@/lib/api';
 import { useTab } from '@/contexts/TabContext';
 import Toast from '@/components/ui/Toast';
@@ -15,7 +14,6 @@ import MessageModal from '@/components/MessageModal';
 import DashboardTab from '@/components/tabs/DashboardTab';
 import LeadsTab from '@/components/tabs/LeadsTab';
 import FindLeadsTab from '@/components/tabs/FindLeadsTab';
-import AutoScanTab, { useAutoScan } from '@/components/tabs/AutoScanTab';
 import SuppliersTab from '@/components/tabs/SuppliersTab';
 import KanbanTab from '@/components/tabs/KanbanTab';
 import TasksTab from '@/components/tabs/TasksTab';
@@ -29,7 +27,7 @@ import { Settings, UserCheck } from 'lucide-react';
 
 export default function DashboardPage() {
   // ── Tab context (replaces local tab state) ─────────────────────────────────
-  const { tab, setTab, setAutoScanBadge, setHeaderAction } = useTab();
+  const { tab, setTab, setHeaderAction } = useTab();
 
   // Switch to the tab specified in the URL (e.g. after OAuth redirect ?tab=social)
   useEffect(() => {
@@ -41,14 +39,12 @@ export default function DashboardPage() {
   // ── Local state ────────────────────────────────────────────────────────────
   const [leads, setLeads]             = useState<Lead[]>([]);
   const [suppliers, setSuppliers]     = useState<Supplier[]>([]);
-  const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [toast, setToast]             = useState<ToastState | null>(null);
   const [showAddLead, setShowAddLead]         = useState(false);
   const [editLead, setEditLead]               = useState<Lead | null>(null);
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [editSupplier, setEditSupplier]       = useState<Supplier | null>(null);
-  const [msgLead, setMsgLead]                 = useState<Lead | ScanResult | null>(null);
-  const [autoEnabled, setAutoEnabled]         = useState(true);
+  const [msgLead, setMsgLead]                 = useState<Lead | null>(null);
 
   const notify = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -76,11 +72,6 @@ export default function DashboardPage() {
     }
   }, [tab, setHeaderAction]);
 
-  // ── Keep Auto-Scan badge count in sync ─────────────────────────────────────
-  useEffect(() => {
-    setAutoScanBadge(scanResults.filter((r) => !r.imported).length);
-  }, [scanResults, setAutoScanBadge]);
-
   // ── Data loading ───────────────────────────────────────────────────────────
   const loadLeads = useCallback(async () => {
     try { setLeads((await getLeads()) as Lead[]); } catch {}
@@ -90,23 +81,10 @@ export default function DashboardPage() {
     try { setSuppliers((await getSuppliers()) as Supplier[]); } catch {}
   }, []);
 
-  const loadScanResults = useCallback(async () => {
-    try { setScanResults((await getScanResults()) as ScanResult[]); } catch {}
-  }, []);
-
   useEffect(() => {
     loadLeads();
     loadSuppliers();
-    loadScanResults();
-  }, [loadLeads, loadSuppliers, loadScanResults]);
-
-  // ── Auto-scan ──────────────────────────────────────────────────────────────
-  const handleScanComplete = useCallback(async (found: object[]) => {
-    await loadScanResults();
-    notify(`🔍 Found ${found.length} leads across South FL & Tampa!`);
-  }, [loadScanResults]);
-
-  const { scanning, scanProgress, nextScanIn, runScan } = useAutoScan(autoEnabled, handleScanComplete);
+  }, [loadLeads, loadSuppliers]);
 
   // ── Lead operations ────────────────────────────────────────────────────────
   const handleCreateLead = async (data: Partial<Lead>) => {
@@ -151,19 +129,6 @@ export default function DashboardPage() {
     await deleteSupplier(id); await loadSuppliers(); notify('Supplier removed.', false);
   };
 
-  // ── Scan result operations ─────────────────────────────────────────────────
-  const handleImportScan = async (id: string, name: string) => {
-    try {
-      await importScanResult(id);
-      await loadLeads(); await loadScanResults();
-      notify(`Imported: ${name}`);
-    } catch (e) { notify(e instanceof Error ? e.message : 'Import failed.', false); }
-  };
-
-  const handleClearScans = async () => {
-    await clearScanResults(); setScanResults([]);
-  };
-
   // ── Stats ──────────────────────────────────────────────────────────────────
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const stats = {
@@ -172,7 +137,6 @@ export default function DashboardPage() {
     qualified:        leads.filter((l) => l.status === 'qualified').length,
     homeowners:       leads.filter((l) => l.type === 'Homeowner').length,
     contractors:      leads.filter((l) => l.type === 'Contractor' || l.type === 'Developer').length,
-    autoNew:          scanResults.filter((r) => !r.imported).length,
     newThisWeek:      leads.filter((l) => {
       const d = new Date(l.created_at ?? l.date ?? '');
       return !isNaN(d.getTime()) && d.getTime() > weekAgo;
@@ -188,12 +152,7 @@ export default function DashboardPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-16 space-y-0">
         {/* ── Main tabs ── */}
         {tab === 'dashboard' && (
-          <DashboardTab
-            leads={leads} scanResults={scanResults} stats={stats}
-            scanning={scanning} scanProgress={scanProgress}
-            autoEnabled={autoEnabled} nextScanIn={nextScanIn}
-            onScanNow={runScan} onToggleAuto={() => setAutoEnabled((p) => !p)}
-          />
+          <DashboardTab leads={leads} stats={stats} />
         )}
         {tab === 'leads' && (
           <LeadsTab
@@ -206,16 +165,6 @@ export default function DashboardPage() {
             existingLeads={leads}
             onImport={handleImportFindLead}
             onMessage={(lead) => setMsgLead(lead as Lead)}
-          />
-        )}
-        {tab === 'auto' && (
-          <AutoScanTab
-            scanResults={scanResults} existingLeads={leads}
-            autoEnabled={autoEnabled}
-            scanning={scanning} scanProgress={scanProgress} nextScanIn={nextScanIn}
-            onImport={handleImportScan} onMessage={setMsgLead}
-            onClear={handleClearScans} onScanNow={runScan}
-            onToggleAuto={() => setAutoEnabled((p) => !p)}
           />
         )}
         {tab === 'suppliers' && (

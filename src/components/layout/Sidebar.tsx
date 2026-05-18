@@ -1,7 +1,7 @@
 'use client';
 import {
-  LayoutDashboard, Users, Search, Bot,
-  Building2, Package, UserCheck, Settings,
+  LayoutDashboard, Users, Search,
+  Building2, Package, Settings,
   LogOut, ChevronRight, X,
   Columns2, FolderOpen, CheckSquare, BarChart2, MessageCircle, Send,
 } from 'lucide-react';
@@ -21,7 +21,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'leads',     label: 'Leads',        icon: Users,           section: 'MAIN' },
   { id: 'kanban',    label: 'Pipeline',     icon: Columns2,        section: 'MAIN' },
   { id: 'find',      label: 'Find Leads',   icon: Search,          section: 'MAIN' },
-  { id: 'auto',      label: 'Auto-Scan',    icon: Bot,             section: 'MAIN', badge: true },
   { id: 'customers', label: 'Customers',    icon: Building2,       section: 'BUSINESS' },
   { id: 'projects',  label: 'Projects',     icon: FolderOpen,      section: 'BUSINESS' },
   { id: 'tasks',     label: 'Tasks',        icon: CheckSquare,     section: 'BUSINESS' },
@@ -32,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 function NavLink({ item }: { item: NavItem }) {
-  const { tab, setTab, autoScanBadge, setSidebarOpen } = useTab();
+  const { tab, setTab, setSidebarOpen } = useTab();
   const isActive = tab === item.id;
   const Icon = item.icon;
 
@@ -55,17 +54,6 @@ function NavLink({ item }: { item: NavItem }) {
       />
       {/* Label hidden on icon-only tablet view */}
       <span className="hidden lg:inline truncate">{item.label}</span>
-
-      {/* Badge — only show when labels visible */}
-      {item.badge && autoScanBadge > 0 && (
-        <span className="hidden lg:flex ml-auto min-w-[20px] h-5 items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5">
-          {autoScanBadge}
-        </span>
-      )}
-      {/* Compact badge dot at md */}
-      {item.badge && autoScanBadge > 0 && (
-        <span className="lg:hidden absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-      )}
 
       {isActive && (
         <ChevronRight size={14} className="hidden lg:block ml-auto text-amber-500 shrink-0" />

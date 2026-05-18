@@ -432,9 +432,25 @@ export default function OutreachTab({ leads }: { leads: { id: string; name: stri
   const [modal,       setModal]       = useState<'template' | 'campaign' | 'schedule' | 'automation' | null>(null);
   const [editTmpl,    setEditTmpl]    = useState<MessageTemplate | null>(null);
   const [sending,     setSending]     = useState<string | null>(null);
+  const [running,     setRunning]     = useState(false);
   const [flash,       setFlash]       = useState<string | null>(null);
 
   const showFlash = (msg: string) => { setFlash(msg); setTimeout(() => setFlash(null), 3000); };
+
+  const runAutomations = async () => {
+    setRunning(true);
+    try {
+      const res = await fetch('/api/cron/outreach', { method: 'POST' });
+      const data = await res.json() as { processed?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Failed');
+      showFlash(`Done — ${data.processed ?? 0} action(s) processed`);
+      await load();
+    } catch (e) {
+      showFlash((e as Error).message);
+    } finally {
+      setRunning(false);
+    }
+  };;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -654,11 +670,22 @@ export default function OutreachTab({ leads }: { leads: { id: string; name: stri
         <div>
           <div className="flex justify-between items-center mb-1">
             <p className="text-sm font-bold text-slate-700">Automation Rules</p>
-            <button onClick={() => setModal('automation')} className="btn-primary flex items-center gap-1.5 text-xs">
-              <Plus size={13} /> New Rule
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={runAutomations}
+                disabled={running}
+                className="btn-ghost flex items-center gap-1.5 text-xs"
+                title="Process automation rules now"
+              >
+                <RefreshCw size={13} className={running ? 'animate-spin' : ''} />
+                {running ? 'Running…' : 'Run Now'}
+              </button>
+              <button onClick={() => setModal('automation')} className="btn-primary flex items-center gap-1.5 text-xs">
+                <Plus size={13} /> New Rule
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-slate-400 mb-3">Rules run hourly via cron. Each lead is only triggered once per rule per day.</p>
+          <p className="text-xs text-slate-400 mb-3">Rules run manually. Each lead is only triggered once per rule per day.</p>
           {automations.length === 0 ? (
             <Empty icon="⚡" title="No automations yet" desc="Create rules that automatically send messages when leads match a trigger condition." />
           ) : (

@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
           headers: {
             'Content-Type': 'application/json',
             'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'web-search-2025-03-05',
             'x-api-key': apiKey,
           },
           body: JSON.stringify(body),

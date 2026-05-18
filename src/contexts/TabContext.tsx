@@ -6,7 +6,6 @@ export type AppTab =
   | 'leads'
   | 'kanban'
   | 'find'
-  | 'auto'
   | 'customers'
   | 'projects'
   | 'tasks'
@@ -20,9 +19,6 @@ export type AppTab =
 interface TabContextValue {
   tab: AppTab;
   setTab: (t: AppTab) => void;
-  // Badge count shown on Auto-Scan nav item — updated by dashboard page
-  autoScanBadge: number;
-  setAutoScanBadge: (n: number) => void;
   // Action button(s) injected into the top header by the active page
   headerAction: ReactNode;
   setHeaderAction: (node: ReactNode) => void;
@@ -34,8 +30,6 @@ interface TabContextValue {
 const TabContext = createContext<TabContextValue>({
   tab: 'dashboard',
   setTab: () => {},
-  autoScanBadge: 0,
-  setAutoScanBadge: () => {},
   headerAction: null,
   setHeaderAction: () => {},
   sidebarOpen: false,
@@ -46,12 +40,11 @@ export const useTab = () => useContext(TabContext);
 
 export function TabProvider({ children }: { children: ReactNode }) {
   const [tab, setTab]               = useState<AppTab>('dashboard');
-  const [autoScanBadge, setAutoScanBadge] = useState(0);
   const [headerAction, setHeaderAction]   = useState<ReactNode>(null);
   const [sidebarOpen, setSidebarOpen]     = useState(false);
 
   return (
-    <TabContext.Provider value={{ tab, setTab, autoScanBadge, setAutoScanBadge, headerAction, setHeaderAction, sidebarOpen, setSidebarOpen }}>
+    <TabContext.Provider value={{ tab, setTab, headerAction, setHeaderAction, sidebarOpen, setSidebarOpen }}>
       {children}
     </TabContext.Provider>
   );

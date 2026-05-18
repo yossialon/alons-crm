@@ -23,7 +23,6 @@ const SOURCE_BONUS: [string, number][] = [
   ['facebook',     5],
   ['instagram',    4],
   ['social',       3],
-  ['auto-scan',    3],
 ];
 
 const TYPE_BONUS: Record<string, number> = {

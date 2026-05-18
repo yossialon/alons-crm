@@ -19,14 +19,7 @@ export const SUPPLIER_CATS = [
   'Wood & MDF','Hardware','Laminates','Paint & Finish','Countertops','Appliances','Other',
 ];
 
-export const AUTO_SEARCH_AREAS = [
-  'Boca Raton','Fort Lauderdale','Miami','West Palm Beach','Tampa',
-  'Coral Springs','Weston','Delray Beach','Pembroke Pines',
-];
-
-export const AUTO_INTERVAL_MS = 5 * 60 * 60 * 1000; // 5 hours
-
-export const MODEL = 'claude-sonnet-4-6';
+export const MODEL = 'claude-sonnet-4-5';
 
 export function buildContractorPrompt(area: string) {
   return `You are a lead generation specialist for Alon's Kitchens, a custom cabinet manufacturer in South Florida. Use web search to find REAL, CURRENTLY ACTIVE kitchen remodeling contractors and general contractors in ${area}, Florida.

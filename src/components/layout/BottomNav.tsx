@@ -10,7 +10,7 @@ const ITEMS: { id: AppTab; label: string; icon: React.ElementType }[] = [
 ];
 
 export default function BottomNav() {
-  const { tab, setTab, autoScanBadge, setSidebarOpen } = useTab();
+  const { tab, setTab, setSidebarOpen } = useTab();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 safe-area-pb">
@@ -40,11 +40,6 @@ export default function BottomNav() {
         >
           <span className="relative">
             <MoreHorizontal size={20} strokeWidth={1.75} />
-            {autoScanBadge > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full text-white text-[8px] font-bold flex items-center justify-center">
-                {autoScanBadge > 9 ? '9+' : autoScanBadge}
-              </span>
-            )}
           </span>
           More
         </button>

@@ -8,7 +8,6 @@ const TAB_LABELS: Record<AppTab, string> = {
   leads:     'Leads',
   kanban:    'Pipeline',
   find:      'Find Leads',
-  auto:      'Auto-Scan',
   customers: 'Customers',
   projects:  'Projects',
   tasks:     'Tasks',
@@ -21,7 +20,7 @@ const TAB_LABELS: Record<AppTab, string> = {
 };
 
 export default function Header() {
-  const { tab, autoScanBadge, headerAction, setSidebarOpen } = useTab();
+  const { tab, headerAction, setSidebarOpen } = useTab();
   const [searchVal, setSearchVal] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
   const [dark, setDark] = useState(false);
@@ -39,12 +38,9 @@ export default function Header() {
   };
 
   const notifications = [
-    autoScanBadge > 0
-      ? { id: 1, text: `${autoScanBadge} new leads in Auto-Scan queue`, time: 'now', dot: 'bg-amber-500' }
-      : null,
     { id: 2, text: 'David Cohen moved to Qualified', time: '2h ago', dot: 'bg-green-500' },
     { id: 3, text: 'New supplier added: WoodCraft', time: '1d ago', dot: 'bg-blue-500' },
-  ].filter(Boolean) as { id: number; text: string; time: string; dot: string }[];
+  ] as { id: number; text: string; time: string; dot: string }[];
 
   const unread = notifications.length;
 

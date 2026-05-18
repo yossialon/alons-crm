@@ -2,6 +2,9 @@
   "functions": {
     "src/app/api/cron/outreach/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/claude/route.ts": {
+      "maxDuration": 60
     }
   }
 }

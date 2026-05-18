@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { Lead, ScanResult } from '@/types';
-import { StatusBadge, sourceIcon, PulsingDot } from '../ui/Badges';
-import { AUTO_SEARCH_AREAS, MODEL } from '@/lib/constants';
+import { Lead } from '@/types';
+import { StatusBadge, sourceIcon } from '../ui/Badges';
+import { MODEL } from '@/lib/constants';
 import {
   Users, CalendarPlus, TrendingUp, Package,
   Sparkles, RefreshCw, AlertCircle, Brain,
@@ -12,7 +12,7 @@ import {
 
 interface Stats {
   total: number; new: number; qualified: number;
-  homeowners: number; contractors: number; autoNew: number;
+  homeowners: number; contractors: number;
   newThisWeek: number; activePipeline: number; pendingSuppliers: number;
 }
 
@@ -187,19 +187,10 @@ Be direct, specific, and actionable. No filler.`;
 
 interface Props {
   leads: Lead[];
-  scanResults: ScanResult[];
   stats: Stats;
-  scanning: boolean;
-  scanProgress: { current: number; total: number; area: string };
-  autoEnabled: boolean;
-  nextScanIn: string;
-  onScanNow: () => void;
-  onToggleAuto: () => void;
 }
 
-export default function DashboardTab({
-  leads, stats, scanning, scanProgress, autoEnabled, nextScanIn, onScanNow, onToggleAuto,
-}: Props) {
+export default function DashboardTab({ leads, stats }: Props) {
   return (
     <div className="space-y-5">
 
@@ -245,76 +236,6 @@ export default function DashboardTab({
 
       {/* ── AI Daily Briefing ── */}
       <BriefingSection leads={leads} />
-
-      {/* ── Scanner control ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-        <div className="flex justify-between items-start flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
-              <PulsingDot /> Live Lead Scanner
-            </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Real web search · Google Maps, Nextdoor, Reddit, Houzz, Permits · 9 South FL areas
-            </p>
-            {autoEnabled && (
-              <p className="text-xs text-brand-700 font-semibold mt-1.5">⏱ Next auto-scan: {nextScanIn}</p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={onScanNow}
-              disabled={scanning}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                scanning
-                  ? 'bg-slate-100 text-slate-400 cursor-default'
-                  : 'bg-brand-700 text-white hover:bg-brand-600 shadow-sm shadow-brand-700/25'
-              }`}
-            >
-              {scanning ? `Scanning ${scanProgress.area}…` : '▶ Scan Now'}
-            </button>
-            <button
-              onClick={onToggleAuto}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-                autoEnabled
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}
-            >
-              {autoEnabled ? '🟢 Auto ON' : '🔴 Auto OFF'}
-            </button>
-          </div>
-        </div>
-
-        {scanning && (
-          <div className="mt-4">
-            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-400"
-                style={{
-                  width: `${(scanProgress.current / scanProgress.total) * 100}%`,
-                  background: 'linear-gradient(90deg, #92400E, #D97706)',
-                }}
-              />
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {AUTO_SEARCH_AREAS.map((a, i) => (
-                <span
-                  key={a}
-                  className={`text-[11px] px-2.5 py-1 rounded-full font-semibold ${
-                    i < scanProgress.current
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : i === scanProgress.current - 1
-                        ? 'bg-amber-50 text-amber-700'
-                        : 'bg-slate-100 text-slate-400'
-                  }`}
-                >
-                  {i < scanProgress.current ? '✓ ' : i === scanProgress.current - 1 ? '⟳ ' : ''}{a}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* ── Recent leads + What We Search ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
