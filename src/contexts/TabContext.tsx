@@ -6,6 +6,7 @@ export type AppTab =
   | 'leads'
   | 'kanban'
   | 'find'
+  | 'audit'
   | 'customers'
   | 'projects'
   | 'tasks'

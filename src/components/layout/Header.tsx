@@ -8,6 +8,7 @@ const TAB_LABELS: Record<AppTab, string> = {
   leads:     'Leads',
   kanban:    'Pipeline',
   find:      'Find Leads',
+  audit:     'Lead Audit',
   customers: 'Customers',
   projects:  'Projects',
   tasks:     'Tasks',

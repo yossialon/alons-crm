@@ -1,6 +1,6 @@
 'use client';
 import {
-  LayoutDashboard, Users, Search,
+  LayoutDashboard, Users, Search, ClipboardList,
   Building2, Package, Settings,
   LogOut, ChevronRight, X,
   Columns2, FolderOpen, CheckSquare, BarChart2, MessageCircle, Send,
@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'leads',     label: 'Leads',        icon: Users,           section: 'MAIN' },
   { id: 'kanban',    label: 'Pipeline',     icon: Columns2,        section: 'MAIN' },
   { id: 'find',      label: 'Find Leads',   icon: Search,          section: 'MAIN' },
+  { id: 'audit',     label: 'Lead Audit',   icon: ClipboardList,   section: 'MAIN' },
   { id: 'customers', label: 'Customers',    icon: Building2,       section: 'BUSINESS' },
   { id: 'projects',  label: 'Projects',     icon: FolderOpen,      section: 'BUSINESS' },
   { id: 'tasks',     label: 'Tasks',        icon: CheckSquare,     section: 'BUSINESS' },

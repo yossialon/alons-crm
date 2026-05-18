@@ -120,3 +120,55 @@ Return ONLY a raw JSON array of 5 leads (no markdown):
   "notes": "Specific reason this is a good lead"
 }]`;
 }
+
+export function buildAuditPrompt(city: string, services: string, budget: string) {
+  return `You are an expert Lead Generation Specialist auditing lead channels for **Alon's Kitchens** — a custom cabinet manufacturer in ${city}, Florida. Services: ${services}. Monthly lead budget: ${budget}.
+
+Use web search extensively across all four phases. Be specific and cite real URLs/posts wherever found.
+
+## PHASE 1 — AUDIT LEAD SOURCES
+Search each channel for kitchen cabinet / remodeling leads in ${city} FL. Report ✅ Working | ⚠️ Partial | ❌ Broken.
+
+Channels to check (search each one):
+- Facebook Groups — search "kitchen remodel ${city} FL Facebook group 2025"
+- Nextdoor — search "Nextdoor ${city} Florida kitchen remodel recommendation 2025"
+- Reddit — search "site:reddit.com ${city} kitchen cabinet remodel 2025"
+- Houzz — search "Houzz kitchen remodeler ${city} Florida"
+- Angi/HomeAdvisor — search "kitchen remodel ${city} FL site:angi.com"
+- Google Maps — search "kitchen remodeling contractor ${city} FL"
+- Craigslist — search "craigslist ${city} FL kitchen remodel services wanted"
+- BBB — search "kitchen contractor ${city} FL site:bbb.org"
+- LinkedIn — search "site:linkedin.com kitchen remodel contractor ${city} Florida"
+- Building Permits — search "${city} Florida kitchen remodel permit 2025"
+
+## PHASE 2 — FIND ACTIVE LEADS RIGHT NOW
+Search for real, active homeowners or contractors in ${city} and South Florida looking for kitchen cabinets or a remodeling contractor in the last 30–60 days. Use searches like:
+- "need kitchen cabinet contractor South Florida 2025"
+- "kitchen remodel ${city} recommendation Reddit OR Nextdoor"
+- "looking for kitchen contractor Fort Lauderdale OR Boca Raton"
+- "Houzz ${city} FL kitchen questions 2025"
+
+Return a markdown table of every real lead found:
+| # | Name/Handle | Platform | Post Summary | Service Needed | Location | Date | Priority |
+
+Priority: 🔴 HIGH (urgent + specific), 🟡 MEDIUM (general interest), 🟢 LOW (early research)
+
+## PHASE 3 — ONLINE PRESENCE CHECK
+Search for Alon's Kitchens specifically:
+- Google search "Alon's Kitchens ${city} Florida" — any listings found?
+- Houzz profile search "Alon's Kitchens"
+- Google Maps listing
+- Yelp listing
+- Any reviews or mentions online
+
+Report what's found and what's missing.
+
+## PHASE 4 — REPORT & RECOMMENDATIONS
+1. **Summary Dashboard** — channels working vs broken (count)
+2. **Top Leads** — best opportunities from Phase 2, ranked by priority
+3. **Quick Wins** — 3 concrete actions to get more leads THIS WEEK in ${city}
+4. **Fix List** — what broken channels to fix first and how
+5. **Highest-ROI Channel** — single best channel for a South Florida cabinet company to invest in
+
+Format the entire response in clean markdown with headers, tables, and emoji status indicators.`;
+}

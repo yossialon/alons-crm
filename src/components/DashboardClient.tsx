@@ -14,6 +14,7 @@ import MessageModal from '@/components/MessageModal';
 import DashboardTab from '@/components/tabs/DashboardTab';
 import LeadsTab from '@/components/tabs/LeadsTab';
 import FindLeadsTab from '@/components/tabs/FindLeadsTab';
+import LeadAuditTab from '@/components/tabs/LeadAuditTab';
 import SuppliersTab from '@/components/tabs/SuppliersTab';
 import KanbanTab from '@/components/tabs/KanbanTab';
 import TasksTab from '@/components/tabs/TasksTab';
@@ -167,6 +168,7 @@ export default function DashboardPage() {
             onMessage={(lead) => setMsgLead(lead as Lead)}
           />
         )}
+        {tab === 'audit' && <LeadAuditTab />}
         {tab === 'suppliers' && (
           <SuppliersTab
             suppliers={suppliers} onEdit={setEditSupplier} onDelete={handleDeleteSupplier}
