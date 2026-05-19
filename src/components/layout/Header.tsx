@@ -17,6 +17,7 @@ const TAB_LABELS: Record<AppTab, string> = {
   employees: 'Employees',
   social:    'Social Inbox',
   outreach:  'Outreach',
+  marketing: 'Marketing',
   settings:  'Settings',
 };
 

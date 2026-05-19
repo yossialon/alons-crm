@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   Search, X, Eye, Mail, Edit2, Trash2,
   Phone, MapPin, Globe, Calendar, ExternalLink,
-  User, MessageSquare, ChevronDown, Users,
+  User, MessageSquare, ChevronDown, Users, CheckCircle2,
 } from 'lucide-react';
 import { Lead } from '@/types';
 import { LEAD_TYPES } from '@/lib/constants';
@@ -294,9 +294,10 @@ interface Props {
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
   onMessage: (lead: Lead) => void;
+  onCompleteJob?: (lead: Lead) => void;
 }
 
-export default function LeadsTab({ leads, onEdit, onDelete, onStatusChange, onMessage }: Props) {
+export default function LeadsTab({ leads, onEdit, onDelete, onStatusChange, onMessage, onCompleteJob }: Props) {
   const [search, setSearch]       = useState('');
   const [typeFilter, setType]     = useState('All');
   const [statusFilter, setStatus] = useState('All');
@@ -530,6 +531,15 @@ export default function LeadsTab({ leads, onEdit, onDelete, onStatusChange, onMe
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </ActionBtn>
+                        {onCompleteJob && (
+                          <ActionBtn
+                            title="Complete Job"
+                            onClick={() => onCompleteJob(lead)}
+                            className="bg-green-50 text-green-600 hover:bg-green-100"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </ActionBtn>
+                        )}
                       </div>
                     </td>
                   </tr>

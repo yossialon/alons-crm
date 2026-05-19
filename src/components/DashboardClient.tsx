@@ -23,7 +23,9 @@ import AnalyticsTab from '@/components/tabs/AnalyticsTab';
 import CustomersTab from '@/components/tabs/CustomersTab';
 import SocialTab from '@/components/tabs/SocialTab';
 import OutreachTab from '@/components/tabs/OutreachTab';
+import MarketingTab from '@/components/tabs/MarketingTab';
 import SettingsTab from '@/components/tabs/SettingsTab';
+import JobCompletionModal from '@/components/JobCompletionModal';
 import { Settings, UserCheck } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -46,6 +48,8 @@ export default function DashboardPage() {
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [editSupplier, setEditSupplier]       = useState<Supplier | null>(null);
   const [msgLead, setMsgLead]                 = useState<Lead | null>(null);
+  const [showJobCompletion, setShowJobCompletion]   = useState(false);
+  const [jobCompletionLead, setJobCompletionLead]   = useState<Lead | null>(null);
 
   const notify = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -172,6 +176,7 @@ export default function DashboardPage() {
           <LeadsTab
             leads={leads} onEdit={setEditLead} onDelete={handleDeleteLead}
             onStatusChange={handleStatusChange} onMessage={setMsgLead}
+            onCompleteJob={(lead) => { setJobCompletionLead(lead); setShowJobCompletion(true); }}
           />
         )}
         {tab === 'find' && (
@@ -202,6 +207,7 @@ export default function DashboardPage() {
         {tab === 'customers' && <CustomersTab />}
         {tab === 'social'    && <SocialTab />}
         {tab === 'outreach'  && <OutreachTab leads={leads.map((l) => ({ id: l.id, name: l.name }))} />}
+        {tab === 'marketing' && <MarketingTab />}
 
         {/* ── Placeholder tabs ── */}
         {tab === 'employees' && <PlaceholderPage icon={<UserCheck size={40} />} title="Employees" desc="Manage your team, assign leads, and track performance. Coming soon." />}
@@ -225,6 +231,13 @@ export default function DashboardPage() {
       )}
       {msgLead && (
         <MessageModal lead={msgLead as Lead} onClose={() => setMsgLead(null)} />
+      )}
+      {showJobCompletion && (
+        <JobCompletionModal
+          lead={jobCompletionLead}
+          onClose={() => { setShowJobCompletion(false); setJobCompletionLead(null); }}
+          onComplete={() => { setShowJobCompletion(false); setJobCompletionLead(null); }}
+        />
       )}
     </>
   );

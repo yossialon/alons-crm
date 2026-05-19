@@ -15,6 +15,7 @@ export type AppTab =
   | 'employees'
   | 'social'
   | 'outreach'
+  | 'marketing'
   | 'settings';
 
 interface TabContextValue {

@@ -222,6 +222,26 @@ export interface AuditEntry {
   created_at:  string;
 }
 
+export interface JobCompletion {
+  id: string;
+  lead_id?: string;
+  project_id?: string;
+  before_photo_url: string;
+  after_photo_url: string;
+  job_type: string;
+  description: string;
+  customer_name: string;
+  customer_phone: string;
+  area: string;
+  instagram_post_url?: string;
+  google_post_url?: string;
+  nextdoor_copied: boolean;
+  review_request_sent: boolean;
+  review_request_sent_at?: string;
+  completed_at: string;
+  created_at: string;
+}
+
 // ── UI-only types ─────────────────────────────────────────────────────────────
 
 export interface ToastState {
