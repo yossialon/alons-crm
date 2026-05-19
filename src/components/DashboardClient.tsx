@@ -109,9 +109,22 @@ export default function DashboardPage() {
 
   const handleImportFindLead = async (data: object) => {
     try {
-      await createLead({ ...(data as Partial<Lead>), status: 'new' });
+      const created = await createLead({ ...(data as Partial<Lead>), status: 'new' });
       await loadLeads();
       notify(`Imported: ${(data as { name: string }).name}`);
+
+      const createdId = (created as { id?: string }).id;
+      if (createdId && process.env.NEXT_PUBLIC_AUTO_OUTREACH_ON_IMPORT !== 'false') {
+        const newLead = { ...(data as Partial<Lead>), status: 'new' };
+        if ((newLead as { email?: string }).email) {
+          fetch('/api/outreach', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lead_id: createdId, method: 'email', notes: 'Auto-outreach on import' }) }).catch(() => {});
+        }
+        if ((newLead as { phone?: string }).phone) {
+          fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: `Call ${(newLead as { name?: string }).name ?? 'new lead'} — new lead imported`, due_date: new Date().toISOString().slice(0, 10), lead_id: createdId }) }).catch(() => {});
+        }
+      }
     } catch (e) { notify(e instanceof Error ? e.message : 'Import failed.', false); }
   };
 

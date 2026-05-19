@@ -41,50 +41,23 @@ export const importScanResult = (id: string)       => req<object>(`/api/scan-res
 
 // ── Claude (proxied — API key stays server-side) ──────────────────────────────
 export async function callClaude(prompt: string): Promise<string> {
-  type Block = { type: string; text?: string; id?: string; name?: string; input?: unknown };
-  type ClaudeResponse = { content?: Block[]; stop_reason?: string; error?: { message: string } };
-
-  const messages: { role: string; content: unknown }[] = [
-    { role: 'user', content: prompt },
-  ];
-
-  for (let i = 0; i < 5; i++) {
-    const data = await req<ClaudeResponse>('/api/claude', {
-      ...json({
-        model: MODEL,
-        max_tokens: 4000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages,
-      }),
-      method: 'POST',
-    });
-
-    if (data.error) throw new Error(data.error.message);
-
-    const content = data.content ?? [];
-
-    if (data.stop_reason === 'end_turn') {
-      return content
-        .filter((b) => b.type === 'text')
-        .map((b) => b.text ?? '')
-        .join('\n');
-    }
-
-    if (data.stop_reason === 'tool_use') {
-      messages.push({ role: 'assistant', content });
-      const toolResults = content
-        .filter((b) => b.type === 'tool_use')
-        .map((b) => ({ type: 'tool_result', tool_use_id: b.id, content: '' }));
-      messages.push({ role: 'user', content: toolResults });
-    } else {
-      return content
-        .filter((b) => b.type === 'text')
-        .map((b) => b.text ?? '')
-        .join('\n');
-    }
-  }
-
-  return '';
+  const data = await req<{
+    content?: { type: string; text?: string }[];
+    error?: { message: string };
+  }>('/api/claude', {
+    ...json({
+      model: MODEL,
+      max_tokens: 4000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: prompt }],
+    }),
+    method: 'POST',
+  });
+  if (data.error) throw new Error(data.error.message);
+  return (data.content ?? [])
+    .filter((b) => b.type === 'text')
+    .map((b) => b.text ?? '')
+    .join('\n');
 }
 
 export function parseLeadsFromText(text: string): object[] {

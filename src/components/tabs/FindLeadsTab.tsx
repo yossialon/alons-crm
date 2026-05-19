@@ -8,12 +8,13 @@ import Spinner from '../ui/Spinner';
 import { Search, MapPin } from 'lucide-react';
 
 interface Props {
-  existingLeads?: { phone?: string; name: string }[];
+  existingLeads?: { phone?: string; email?: string; website?: string; name: string }[];
   onImport: (lead: object) => Promise<void>;
   onMessage: (lead: object) => void;
 }
 
 type FindType = 'Contractors' | 'Homeowners' | 'Developers';
+type LeadSource = 'AI Search' | 'Google Maps' | 'Permit Records';
 
 const PROMPT_MAP: Record<FindType, (area: string) => string> = {
   Contractors: buildContractorPrompt,
@@ -33,13 +34,45 @@ const TYPE_ICONS: Record<FindType, string> = {
   Developers:  '🏗️',
 };
 
+function extractDomain(website: string): string {
+  return website
+    .toLowerCase()
+    .replace(/^https?:\/\/(www\.)?/, '')
+    .split('/')[0];
+}
+
 export default function FindLeadsTab({ existingLeads = [], onImport, onMessage }: Props) {
-  const [findType,   setFindType]   = useState<FindType>('Contractors');
-  const [area,       setArea]       = useState('Boca Raton');
-  const [loading,    setLoading]    = useState(false);
-  const [results,    setResults]    = useState<LeadCardData[]>([]);
+  const [findType,    setFindType]    = useState<FindType>('Contractors');
+  const [leadSource,  setLeadSource]  = useState<LeadSource>('AI Search');
+  const [area,        setArea]        = useState('Boca Raton');
+  const [loading,     setLoading]     = useState(false);
+  const [results,     setResults]     = useState<LeadCardData[]>([]);
   const [importedSet, setImportedSet] = useState<Set<number>>(new Set());
-  const [log,        setLog]        = useState('');
+  const [log,         setLog]         = useState('');
+
+  const runEnrichment = (leads: LeadCardData[]) => {
+    leads.forEach((lead, idx) => {
+      if (!lead.website || lead.email) return;
+      const domain = extractDomain(lead.website);
+      if (!domain) return;
+      fetch('/api/leads/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain }),
+      })
+        .then((r) => r.json())
+        .then((data: { email?: string | null }) => {
+          if (data.email) {
+            setResults((prev) => {
+              const next = [...prev];
+              next[idx] = { ...next[idx], email: data.email!, enriched: true };
+              return next;
+            });
+          }
+        })
+        .catch(() => {});
+    });
+  };
 
   const search = async () => {
     setLoading(true);
@@ -47,18 +80,45 @@ export default function FindLeadsTab({ existingLeads = [], onImport, onMessage }
     setImportedSet(new Set());
     setLog('');
     try {
-      const text   = await callClaude(PROMPT_MAP[findType](area));
-      const parsed = parseLeadsFromText(text) as LeadCardData[];
-      if (parsed.length > 0) {
-        setResults(parsed);
-        setLog(`Found ${parsed.length} leads in ${area}`);
-      } else {
-        setLog('No structured results — try a different area or type.');
-        setResults([{
-          name: 'Raw AI Response', phone: '', email: '', website: '',
-          area, type: findType.slice(0, -1), source: 'AI', potential: 'medium',
-          rating: '', notes: text.slice(0, 400),
-        }]);
+      if (leadSource === 'AI Search') {
+        const text   = await callClaude(PROMPT_MAP[findType](area));
+        const parsed = parseLeadsFromText(text) as LeadCardData[];
+        if (parsed.length > 0) {
+          setResults(parsed);
+          setLog(`Found ${parsed.length} leads in ${area}`);
+          runEnrichment(parsed);
+        } else {
+          setLog('No structured results — try a different area or type.');
+          setResults([{
+            name: 'Raw AI Response', phone: '', email: '', website: '',
+            area, type: findType.slice(0, -1), source: 'AI', potential: 'medium',
+            rating: '', notes: text.slice(0, 400),
+          }]);
+        }
+      } else if (leadSource === 'Google Maps') {
+        const res = await fetch('/api/leads/search/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: 'kitchen remodeling contractor', area }),
+        });
+        const data = await res.json() as { leads?: LeadCardData[]; error?: string };
+        if (data.error) throw new Error(data.error);
+        const leads = data.leads ?? [];
+        setResults(leads);
+        setLog(`Found ${leads.length} leads from Google Maps in ${area}`);
+        runEnrichment(leads);
+      } else if (leadSource === 'Permit Records') {
+        const res = await fetch('/api/leads/search/permits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ area }),
+        });
+        const data = await res.json() as { leads?: LeadCardData[]; error?: string };
+        if (data.error) throw new Error(data.error);
+        const leads = data.leads ?? [];
+        setResults(leads);
+        setLog(`Found ${leads.length} permit leads in ${area}`);
+        runEnrichment(leads);
       }
     } catch (err) {
       setLog(`Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -103,6 +163,26 @@ export default function FindLeadsTab({ existingLeads = [], onImport, onMessage }
           </div>
         </div>
 
+        {/* Source toggle */}
+        <div className="mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Source</p>
+          <div className="flex gap-2">
+            {(['AI Search', 'Google Maps', 'Permit Records'] as LeadSource[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setLeadSource(s)}
+                className={`flex-1 py-2 px-3 text-xs font-semibold rounded-xl border transition-all ${
+                  leadSource === s
+                    ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Area + search */}
         <div className="flex gap-3 items-end flex-wrap">
           <div className="flex-1 min-w-[160px]">
@@ -128,9 +208,11 @@ export default function FindLeadsTab({ existingLeads = [], onImport, onMessage }
           </button>
         </div>
 
-        <p className="mt-3 text-[11px] text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
-          🔍 Searches: {SEARCH_HINTS[findType]}
-        </p>
+        {leadSource === 'AI Search' && (
+          <p className="mt-3 text-[11px] text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
+            🔍 Searches: {SEARCH_HINTS[findType]}
+          </p>
+        )}
       </div>
 
       {loading && <Spinner label={`Searching for ${findType.toLowerCase()} in ${area}…`} />}
@@ -154,7 +236,7 @@ export default function FindLeadsTab({ existingLeads = [], onImport, onMessage }
               const origIdx = results.indexOf(r);
               const alreadyImported = importedSet.has(origIdx);
               const inCRM = isDuplicate(
-                { phone: r.phone, name: r.name },
+                { phone: r.phone, email: r.email, website: r.website, name: r.name },
                 existingLeads,
               );
               return (

@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/yossialon/program/alons-crm && npm run dev"],
+      "runtimeArgs": ["-c", "cd /Users/yossialon/program/alons-crm && unset ANTHROPIC_API_KEY && npm run dev"],
       "port": 3000
     }
   ]

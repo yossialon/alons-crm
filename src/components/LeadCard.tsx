@@ -1,6 +1,6 @@
 'use client';
 import { TypePill, PotentialBadge, sourceIcon } from './ui/Badges';
-import { computeLeadScore, scoreLabel, scoreStyles } from '@/lib/scoring';
+import { computeLeadScore, scoreLabel, scoreStyles, leadScoreLabel } from '@/lib/scoring';
 
 export interface LeadCardData {
   id?: string;
@@ -15,6 +15,7 @@ export interface LeadCardData {
   potential: string;
   notes: string;
   imported?: boolean;
+  enriched?: boolean;
 }
 
 interface Props {
@@ -33,10 +34,11 @@ export default function LeadCard({
   imported = false, isExisting = false,
   selectable = false, selected = false, onToggleSelect,
 }: Props) {
-  const score  = computeLeadScore(lead);
-  const label  = scoreLabel(score);
-  const styles = scoreStyles(score);
-  const dim    = imported || isExisting;
+  const score      = computeLeadScore(lead);
+  const label      = scoreLabel(score);
+  const hotness    = leadScoreLabel(score);
+  const styles     = scoreStyles(score);
+  const dim        = imported || isExisting;
 
   return (
     <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
@@ -71,6 +73,21 @@ export default function LeadCard({
             <span className="font-bold text-sm text-slate-800 truncate">{lead.name}</span>
             <TypePill type={lead.type} />
             <PotentialBadge potential={lead.potential} />
+            {hotness === 'hot' && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+                🔥 Hot
+              </span>
+            )}
+            {hotness === 'warm' && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                ⚡ Warm
+              </span>
+            )}
+            {hotness === 'cold' && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                ❄️ Cold
+              </span>
+            )}
             {isExisting && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
                 ✓ In CRM
@@ -86,7 +103,16 @@ export default function LeadCard({
           <div className="flex flex-wrap gap-3 text-xs text-slate-500 mb-2">
             {lead.source  && <span>{sourceIcon(lead.source.split(' ')[0])} {lead.source}</span>}
             {lead.phone   && <span>📞 {lead.phone}</span>}
-            {lead.email   && <span>✉️ {lead.email}</span>}
+            {lead.email   && (
+              <span className="flex items-center gap-1">
+                ✉️ {lead.email}
+                {lead.enriched && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                    ✉ enriched
+                  </span>
+                )}
+              </span>
+            )}
             {lead.website && (
               <a href={lead.website} target="_blank" rel="noreferrer noopener" className="text-blue-500 hover:underline">
                 🌐 Website
