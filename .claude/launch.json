@@ -3,11 +3,9 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "autoPort": true,
-      "cwd": "/Users/yossialon/program/alons-crm"
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/yossialon/program/alons-crm && npm run dev"],
+      "port": 3000
     }
   ]
 }
