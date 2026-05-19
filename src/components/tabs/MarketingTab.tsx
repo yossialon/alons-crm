@@ -1,17 +1,42 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { JobCompletion } from '@/types';
-import { Camera, Instagram, Star, RefreshCw, TrendingUp } from 'lucide-react';
+import { Camera, Instagram, Star, RefreshCw, TrendingUp, MessageSquare, Megaphone } from 'lucide-react';
+
+type AdLeadRow = {
+  id: string;
+  created_at: string;
+  campaign_name?: string;
+  ad_name?: string;
+};
+
+type SocialMessageRow = {
+  id: string;
+  platform: string;
+  thread_id: string;
+  created_at: string;
+};
 
 export default function MarketingTab() {
-  const [jobs, setJobs] = useState<JobCompletion[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs]             = useState<JobCompletion[]>([]);
+  const [adLeads, setAdLeads]       = useState<AdLeadRow[]>([]);
+  const [waMessages, setWaMessages] = useState<SocialMessageRow[]>([]);
+  const [igMessages, setIgMessages] = useState<SocialMessageRow[]>([]);
+  const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
-    fetch('/api/job-completions')
-      .then(r => r.json())
-      .then((data: JobCompletion[]) => { setJobs(Array.isArray(data) ? data : []); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch('/api/job-completions').then(r => r.json()).catch(() => []),
+      fetch('/api/social/ad-leads').then(r => r.json()).catch(() => []),
+      fetch('/api/social/messages?platform=whatsapp').then(r => r.json()).catch(() => []),
+      fetch('/api/social/messages?platform=instagram').then(r => r.json()).catch(() => []),
+    ]).then(([jobData, adData, waData, igData]) => {
+      setJobs(Array.isArray(jobData) ? (jobData as JobCompletion[]) : []);
+      setAdLeads(Array.isArray(adData) ? (adData as AdLeadRow[]) : []);
+      setWaMessages(Array.isArray(waData) ? (waData as SocialMessageRow[]) : []);
+      setIgMessages(Array.isArray(igData) ? (igData as SocialMessageRow[]) : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   const thisMonth = new Date();
@@ -23,6 +48,25 @@ export default function MarketingTab() {
   const googlePosts = monthJobs.filter(j => j.google_post_url).length;
   const reviewsSent = monthJobs.filter(j => j.review_request_sent).length;
 
+  // Meta performance stats
+  const monthAdLeads = adLeads.filter(a => new Date(a.created_at) >= thisMonth).length;
+  const monthIgInteractions = igMessages.filter(m => new Date(m.created_at) >= thisMonth).length;
+
+  // WhatsApp unique threads started this month
+  const waThreadsThisMonth = new Set(
+    waMessages
+      .filter(m => new Date(m.created_at) >= thisMonth)
+      .map(m => m.thread_id)
+  ).size;
+
+  // Top campaign by ad lead count
+  const campaignCounts = adLeads.reduce<Record<string, number>>((acc, a) => {
+    const name = a.campaign_name || 'Unknown Campaign';
+    acc[name] = (acc[name] ?? 0) + 1;
+    return acc;
+  }, {});
+  const topCampaign = Object.entries(campaignCounts).sort((a, b) => b[1] - a[1])[0];
+
   return (
     <div className="space-y-5">
       {/* Stats row */}
@@ -30,6 +74,28 @@ export default function MarketingTab() {
         <StatCard icon={<Instagram size={18} />} label="Instagram" value={igPosts}     color="purple" />
         <StatCard icon={<TrendingUp size={18} />} label="Google"    value={googlePosts} color="blue"   />
         <StatCard icon={<Star size={18} />}       label="Reviews"   value={reviewsSent} color="amber"  />
+      </div>
+
+      {/* Meta Performance */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <h3 className="text-sm font-bold text-slate-700 mb-3">Meta Performance (This Month)</h3>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <StatCard icon={<Megaphone size={18} />}    label="Ad Leads"   value={monthAdLeads}       color="blue"   />
+          <StatCard icon={<Instagram size={18} />}    label="IG Msgs"    value={monthIgInteractions} color="purple" />
+          <StatCard icon={<MessageSquare size={18} />} label="WA Convos" value={waThreadsThisMonth}  color="amber"  />
+        </div>
+        {topCampaign && (
+          <div className="bg-slate-50 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-500">Top Campaign</p>
+              <p className="text-sm font-semibold text-slate-800 truncate max-w-[180px]">{topCampaign[0]}</p>
+            </div>
+            <span className="text-sm font-bold text-brand-700">{topCampaign[1]} lead{topCampaign[1] !== 1 ? 's' : ''}</span>
+          </div>
+        )}
+        {!topCampaign && !loading && (
+          <p className="text-xs text-slate-400 text-center py-2">No ad campaign data yet</p>
+        )}
       </div>
 
       {/* Jobs feed */}

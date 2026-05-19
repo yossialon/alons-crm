@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getSubscription, createCheckout, createPortal } from '@/lib/api';
+import { Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Usage = {
   leads: number; campaigns: number; automations: number;
@@ -40,6 +41,174 @@ const PLAN_FEATURES: Record<string, string[]> = {
   pro:  ['2,000 leads', '20 campaigns', '10 automations', '3 social connections', '5 team members'],
   enterprise: ['Unlimited leads', 'Unlimited campaigns', 'Unlimited automations', '10+ social connections', 'Unlimited team members'],
 };
+
+// ── Meta & Social Section ──────────────────────────────────────────────────
+
+type MetaSettings = {
+  whatsapp_auto_reply?: string;
+  instagram_auto_reply?: string;
+};
+
+type AdLeadRow = {
+  id: string;
+  created_at: string;
+  campaign_name?: string;
+};
+
+function MetaSocialSection() {
+  const [settings, setSettings] = useState<MetaSettings>({});
+  const [adLeads, setAdLeads]   = useState<AdLeadRow[]>([]);
+  const [copied, setCopied]     = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [checkedSteps, setCheckedSteps] = useState<Record<number, boolean>>({});
+  const [saving, setSaving]     = useState<string | null>(null);
+
+  const webhookUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/webhooks/meta/leads`
+    : 'https://your-domain.com/api/webhooks/meta/leads';
+
+  const loadData = useCallback(async () => {
+    const [sRes, aRes] = await Promise.all([
+      fetch('/api/settings'),
+      fetch('/api/social/ad-leads'),
+    ]);
+    if (sRes.ok) setSettings(await sRes.json() as MetaSettings);
+    if (aRes.ok) setAdLeads(await aRes.json() as AdLeadRow[]);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const toggle = async (key: string, current: string) => {
+    const next = current === 'false' ? 'true' : 'false';
+    setSaving(key);
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value: next }),
+    });
+    setSettings(prev => ({ ...prev, [key]: next }));
+    setSaving(null);
+  };
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(webhookUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const thisMonth = new Date();
+  thisMonth.setDate(1); thisMonth.setHours(0, 0, 0, 0);
+  const monthCount = adLeads.filter(a => new Date(a.created_at) >= thisMonth).length;
+  const lastLead   = adLeads[0];
+
+  const guideSteps = [
+    'Go to developers.facebook.com → Create App → Business type',
+    `Add webhook URL shown below and set Verify Token to your META_WEBHOOK_VERIFY_TOKEN value`,
+    'Subscribe to "leadgen" (Lead Ads) and "messages" (WhatsApp/Instagram)',
+    'Paste META_PAGE_ACCESS_TOKEN, META_APP_SECRET, META_WEBHOOK_VERIFY_TOKEN in .env.local',
+    'In Meta Ads Manager → Create campaign → Lead Generation objective → Create form',
+  ];
+
+  const waEnabled  = (settings.whatsapp_auto_reply  ?? 'true') !== 'false';
+  const igEnabled  = (settings.instagram_auto_reply ?? 'true') !== 'false';
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1">Meta &amp; Social</p>
+        <h3 className="font-bold text-slate-800 dark:text-slate-200">Facebook, Instagram &amp; WhatsApp</h3>
+      </div>
+
+      {/* Auto-reply toggles */}
+      <div className="space-y-3">
+        {[
+          { key: 'whatsapp_auto_reply',  label: 'WhatsApp Auto-Reply',  enabled: waEnabled },
+          { key: 'instagram_auto_reply', label: 'Instagram Auto-Reply', enabled: igEnabled },
+        ].map(({ key, label, enabled }) => (
+          <div key={key} className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</p>
+              <p className="text-xs text-slate-400">AI-generated replies sent automatically</p>
+            </div>
+            <button
+              onClick={() => toggle(key, enabled ? 'true' : 'false')}
+              disabled={saving === key}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${enabled ? 'bg-brand-700' : 'bg-slate-300'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Facebook Lead Ads status */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Facebook Lead Ads</p>
+        <div className="flex items-center gap-3">
+          <div className={`w-2.5 h-2.5 rounded-full ${adLeads.length > 0 ? 'bg-green-500' : 'bg-slate-300'}`} />
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            {adLeads.length > 0 ? 'Connected — receiving leads' : 'Not yet connected'}
+          </span>
+        </div>
+        {adLeads.length > 0 && (
+          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
+            <span>This month: <strong className="text-slate-700">{monthCount}</strong></span>
+            {lastLead && <span>Last lead: <strong className="text-slate-700">{new Date(lastLead.created_at).toLocaleDateString()}</strong></span>}
+          </div>
+        )}
+      </div>
+
+      {/* Webhook URL */}
+      <div>
+        <p className="text-xs font-medium text-slate-500 mb-1.5">Lead Ads Webhook URL</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-2 text-slate-600 dark:text-slate-300 truncate">
+            {webhookUrl}
+          </code>
+          <button
+            onClick={copyUrl}
+            className="shrink-0 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+            title="Copy URL"
+          >
+            {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} className="text-slate-500" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Setup Guide */}
+      <div>
+        <button
+          onClick={() => setGuideOpen(o => !o)}
+          className="flex items-center gap-2 text-sm font-semibold text-brand-700 hover:text-brand-600 transition-colors"
+        >
+          {guideOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {guideOpen ? 'Hide' : 'Show'} Setup Guide
+        </button>
+        {guideOpen && (
+          <div className="mt-3 space-y-3 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">5-Step Meta Setup</p>
+            {guideSteps.map((step, i) => (
+              <label key={i} className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={!!checkedSteps[i]}
+                  onChange={() => setCheckedSteps(prev => ({ ...prev, [i]: !prev[i] }))}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-700"
+                />
+                <span className={`text-xs leading-relaxed ${checkedSteps[i] ? 'line-through text-slate-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                  <strong>Step {i + 1}:</strong> {step}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main SettingsTab ───────────────────────────────────────────────────────
 
 export default function SettingsTab() {
   const [data, setData]       = useState<SubData | null>(null);
@@ -192,6 +361,9 @@ export default function SettingsTab() {
           </button>
         </div>
       )}
+
+      {/* Meta & Social */}
+      <MetaSocialSection />
     </div>
   );
 }
