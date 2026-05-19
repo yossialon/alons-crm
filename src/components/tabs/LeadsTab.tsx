@@ -127,12 +127,13 @@ function EmptyState({ isFiltered, onClear }: { isFiltered: boolean; onClear: () 
 // ── Quick View Panel ──────────────────────────────────────────────────────────
 
 function QuickViewPanel({
-  lead, onClose, onEdit, onMessage,
+  lead, onClose, onEdit, onMessage, onCompleteJob,
 }: {
   lead: Lead;
   onClose: () => void;
   onEdit: () => void;
   onMessage: () => void;
+  onCompleteJob?: () => void;
 }) {
   const [visible, setVisible] = useState(false);
 
@@ -267,19 +268,29 @@ function QuickViewPanel({
         </div>
 
         {/* Footer actions */}
-        <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex gap-2.5">
-          <button
-            onClick={() => { onMessage(); handleClose(); }}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" /> Message
-          </button>
-          <button
-            onClick={() => { onEdit(); handleClose(); }}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-brand-700 text-white hover:bg-brand-800 transition-colors shadow-sm"
-          >
-            <Edit2 className="w-4 h-4" /> Edit Lead
-          </button>
+        <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 space-y-2">
+          {onCompleteJob && (
+            <button
+              onClick={() => { onCompleteJob(); handleClose(); }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Complete Job — Post & Review
+            </button>
+          )}
+          <div className="flex gap-2.5">
+            <button
+              onClick={() => { onMessage(); handleClose(); }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" /> Message
+            </button>
+            <button
+              onClick={() => { onEdit(); handleClose(); }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-brand-700 text-white hover:bg-brand-800 transition-colors shadow-sm"
+            >
+              <Edit2 className="w-4 h-4" /> Edit Lead
+            </button>
+          </div>
         </div>
       </div>
     </>
@@ -437,7 +448,7 @@ export default function LeadsTab({ leads, onEdit, onDelete, onStatusChange, onMe
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((lead) => (
-                  <tr key={lead.id} className="group hover:bg-blue-50/30 transition-colors duration-100">
+                  <tr key={lead.id} className="group hover:bg-blue-50/30 transition-colors duration-100 cursor-pointer" onClick={() => setQuickView(lead)}>
 
                     {/* Name + email */}
                     <td className="px-4 py-3.5 max-w-[220px]">
@@ -479,7 +490,7 @@ export default function LeadsTab({ leads, onEdit, onDelete, onStatusChange, onMe
                     </td>
 
                     {/* Status — badge on top, invisible select underneath for click */}
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                       <div className="relative inline-block">
                         <StatusBadge status={lead.status} />
                         <select
@@ -501,7 +512,7 @@ export default function LeadsTab({ leads, onEdit, onDelete, onStatusChange, onMe
                     </td>
 
                     {/* Actions — hidden until row hover */}
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
                         <ActionBtn
                           title="Quick View"
@@ -557,6 +568,7 @@ export default function LeadsTab({ leads, onEdit, onDelete, onStatusChange, onMe
           onClose={() => setQuickView(null)}
           onEdit={() => onEdit(quickView)}
           onMessage={() => onMessage(quickView)}
+          onCompleteJob={onCompleteJob ? () => onCompleteJob(quickView) : undefined}
         />
       )}
     </>
