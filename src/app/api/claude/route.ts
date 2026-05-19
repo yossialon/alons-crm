@@ -7,9 +7,10 @@ const RATE_LIMIT_MAX = process.env.CLAUDE_RATE_LIMIT_MAX ? parseInt(process.env.
 const RATE_LIMIT = { windowMs: 60 * 60 * 1000, max: RATE_LIMIT_MAX };
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Use CLAUDE_API_KEY to avoid being overridden by Claude Code's injected ANTHROPIC_API_KEY=""
+  const apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
   if (!apiKey || apiKey.includes('PASTE_YOUR_NEW_KEY')) {
-    log.error('ANTHROPIC_API_KEY is not configured');
+    log.error('CLAUDE_API_KEY is not configured');
     return NextResponse.json({ error: 'AI service is not configured' }, { status: 500 });
   }
 

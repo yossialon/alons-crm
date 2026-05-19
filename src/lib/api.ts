@@ -7,7 +7,10 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+    const errMsg = typeof err.error === 'string'
+      ? err.error
+      : (err.error?.message ?? err.message ?? res.statusText);
+    throw new Error(errMsg);
   }
   return res.json();
 }
