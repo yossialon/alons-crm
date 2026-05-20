@@ -19,7 +19,7 @@ jobs:
             -X POST \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
-            "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron/outreach")
+            "${{ secrets.APP_URL }}/api/cron/outreach")
 
           echo "Response body:"
           cat /tmp/response.txt
