@@ -28,18 +28,12 @@ export async function POST(req: NextRequest) {
 
   const KW_FILTER = "permit_type_description like '%25KITCHEN%25' OR permit_type_description like '%25REMODEL%25' OR permit_type_description like '%25RENOVATION%25' OR permit_type_description like '%25CABINET%25'";
 
+  // Broward County: opendata.broward.org is currently DNS-unreachable — skip API attempt.
+  // Palm Beach County: try their Socrata open data portal.
   try {
-    if (county === 'broward') {
-      const url = `https://opendata.broward.org/resource/r6dm-gkm8.json?$where=${KW_FILTER}&$limit=10&$order=issue_date DESC`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (res.ok) {
-        const data = await res.json() as RawPermit[];
-        leads = data.map(normalizePermit);
-      }
-    } else if (county === 'palm-beach') {
-      // Palm Beach County open data — building permits (Socrata)
+    if (county === 'palm-beach') {
       const url = `https://opendata.pbcgov.com/resource/p6ck-yxuw.json?$where=${KW_FILTER}&$limit=10&$order=issue_date DESC`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
       if (res.ok) {
         const data = await res.json() as RawPermit[];
         leads = data.map(normalizePermit);
@@ -48,22 +42,24 @@ export async function POST(req: NextRequest) {
   } catch { /* fall through to building-dept fallback */ }
 
   if (leads.length === 0) {
-    const buildingUrl: Record<string, string> = {
-      'palm-beach': 'https://www.pbcgov.org/pzb/building',
-      'broward': 'https://www.broward.org/Building',
-      'miami-dade': 'https://www.miamidade.gov/building',
-      'hillsborough': 'https://www.hcflgov.net/government/countyservices/pgsordm/building',
-      'pinellas': 'https://www.pinellascounty.org/building',
-      'pasco': 'https://www.pascocountyfl.net/index.aspx?NID=117',
-      'collier': 'https://www.colliercountyfl.gov/government/growth-management/divisions/building-plan-review-inspection',
+    const buildingDepts: Record<string, { name: string; website: string; phone: string }> = {
+      'palm-beach':  { name: 'Palm Beach County Building Division',  website: 'https://discover.pbcgov.org/pzb/building/Pages/default.aspx', phone: '(561) 233-5100' },
+      'broward':     { name: 'Broward County Building Code Division', website: 'https://www.broward.org/building-code/Pages/default.aspx',      phone: '(954) 765-4400' },
+      'miami-dade':  { name: 'Miami-Dade Building Department',        website: 'https://www.miamidade.gov/building',                            phone: '(786) 315-2000' },
+      'hillsborough':{ name: 'Hillsborough County Building Services', website: 'https://www.hillsboroughcounty.org/en/residents/property-owner/building-and-construction', phone: '(813) 272-5600' },
+      'pinellas':    { name: 'Pinellas County Building Department',   website: 'https://www.pinellascounty.org/building',                       phone: '(727) 464-3888' },
+      'pasco':       { name: 'Pasco County Building Services',        website: 'https://www.pascocountyfl.net/index.aspx?NID=117',              phone: '(727) 847-8009' },
+      'collier':     { name: 'Collier County Building Department',    website: 'https://www.colliercountyfl.gov/government/growth-management/divisions/building-plan-review-inspection', phone: '(239) 252-2400' },
     };
-    leads = [{
-      name: `${area} Building Dept`,
-      phone: '', email: '',
-      website: buildingUrl[county] ?? 'https://www.broward.org/Building',
-      area, type: 'Homeowner', source: 'Permit Records', rating: '',
-      notes: `Visit ${county} county building dept to find recent kitchen/remodel permits in ${area}.`,
-    }];
+    const dept = buildingDepts[county] ?? buildingDepts['broward'];
+    leads = [
+      {
+        name: dept.name, phone: dept.phone, email: '',
+        website: dept.website,
+        area, type: 'Homeowner', source: 'Permit Records', potential: 'medium' as const, rating: '',
+        notes: `Contact ${county} county building dept to request recent kitchen/remodel/cabinet permits in ${area}. Live permit API currently unavailable.`,
+      },
+    ];
   }
 
   return NextResponse.json({ leads });
