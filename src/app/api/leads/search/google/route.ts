@@ -4,7 +4,7 @@ const PLACES_KEY = process.env.GOOGLE_PLACES_API_KEY ?? '';
 
 // Uses the Places API (New) — https://developers.google.com/maps/documentation/places/web-service/text-search
 export async function POST(req: NextRequest) {
-  if (!PLACES_KEY) return NextResponse.json({ error: 'Google Places API key not configured' }, { status: 500 });
+  if (!PLACES_KEY) return NextResponse.json({ error: 'Google Places API key not configured — add GOOGLE_PLACES_API_KEY to .env.local' }, { status: 500 });
   const { query, area } = await req.json() as { query: string; area: string };
 
   // New Places API — Text Search
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     area,
     type: 'Contractor',
     source: 'Google Maps',
+    potential: 'medium' as const,
     rating: place.rating ? String(place.rating) : '',
     notes: place.editorialSummary?.text ?? place.formattedAddress ?? '',
   }));
