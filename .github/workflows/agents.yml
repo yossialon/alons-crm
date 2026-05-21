@@ -1,0 +1,111 @@
+name: AI Agents Cron
+
+on:
+  schedule:
+    # ── Lead Hunter: daily at 7:00 AM ET (11:00 UTC) ─────────────────────────
+    - cron: '0 11 * * *'    # lead-hunter
+    # ── Tech Manager health: every 10 minutes ─────────────────────────────────
+    - cron: '*/10 * * * *'  # tech-manager/health
+    # ── Boss Agent briefing: daily at 7:30 AM ET (11:30 UTC) ─────────────────
+    - cron: '30 11 * * *'   # boss
+    # ── Ad Machine weekly review: every Monday at 9 AM ET (13:00 UTC) ────────
+    - cron: '0 13 * * 1'    # ad-machine/weekly-review
+    # ── Tech Manager optimization: every Sunday at 8 AM ET (12:00 UTC) ──────
+    - cron: '0 12 * * 0'    # tech-manager/optimize
+
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Which agent to run'
+        required: true
+        default: 'boss'
+        type: choice
+        options:
+          - lead-hunter
+          - ad-machine-weekly
+          - tech-manager-health
+          - tech-manager-optimize
+          - boss
+
+jobs:
+  # ── Lead Hunter (daily 7 AM) ────────────────────────────────────────────────
+  lead-hunter:
+    name: Lead Hunter
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.agent == 'lead-hunter' ||
+      github.event_name == 'schedule' && startsWith(github.event.schedule, '0 11')
+    steps:
+      - name: Trigger Lead Hunter
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/api/agents/lead-hunter" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"cron"}' \
+            --max-time 300
+
+  # ── Ad Machine Weekly Review (Monday 9 AM) ──────────────────────────────────
+  ad-machine-weekly:
+    name: Ad Machine — Weekly Review
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.agent == 'ad-machine-weekly' ||
+      github.event_name == 'schedule' && startsWith(github.event.schedule, '0 13')
+    steps:
+      - name: Trigger Ad Machine Weekly Review
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/api/agents/ad-machine/weekly-review" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"cron"}' \
+            --max-time 120
+
+  # ── Tech Manager Health (every 10 min) ─────────────────────────────────────
+  tech-manager-health:
+    name: Tech Manager — Health Check
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.agent == 'tech-manager-health' ||
+      github.event_name == 'schedule' && startsWith(github.event.schedule, '*/10')
+    steps:
+      - name: Trigger Tech Manager Health
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/api/agents/tech-manager/health" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 60
+
+  # ── Tech Manager Optimize (weekly Sunday) ──────────────────────────────────
+  tech-manager-optimize:
+    name: Tech Manager — Optimization Report
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && github.event.inputs.agent == 'tech-manager-optimize' ||
+      github.event_name == 'schedule' && startsWith(github.event.schedule, '0 12')
+    steps:
+      - name: Trigger Tech Manager Optimization
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/api/agents/tech-manager/optimize" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"cron"}' \
+            --max-time 120
+
+  # ── Boss Agent Daily Briefing (7:30 AM, runs LAST) ─────────────────────────
+  boss-agent:
+    name: Boss Agent — Daily Briefing
+    runs-on: ubuntu-latest
+    needs: [lead-hunter]   # always waits for lead-hunter when both fire on same schedule day
+    if: |
+      always() &&
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.agent == 'boss' ||
+       github.event_name == 'schedule' && startsWith(github.event.schedule, '30 11'))
+    steps:
+      - name: Trigger Boss Agent Briefing
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/api/agents/boss" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"cron"}' \
+            --max-time 60

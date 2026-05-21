@@ -32,6 +32,11 @@ export async function POST(req: NextRequest) {
             post_id?: string;
             from?: { id: string; name?: string };
             message?: string;
+            // DM reply webhook fields
+            sender?: { id: string };
+            recipient?: { id: string };
+            text?: string;
+            mid?: string;
           };
         }[];
       }[];
@@ -39,7 +44,6 @@ export async function POST(req: NextRequest) {
 
     if (body.object !== 'instagram') return NextResponse.json({ ok: true });
 
-    // Check if auto-reply is enabled
     const orgId = await getOrgId();
     const { data: setting } = await supabase
       .from('app_settings')
@@ -49,11 +53,55 @@ export async function POST(req: NextRequest) {
       .single();
 
     const autoReplyEnabled = (setting?.value ?? process.env.INSTAGRAM_AUTO_REPLY ?? 'true') !== 'false';
-    if (!autoReplyEnabled) return NextResponse.json({ ok: true });
 
     for (const entry of body.entry ?? []) {
       for (const change of entry.changes ?? []) {
+        // Handle DM replies — auto-create as lead if not already one
+        if (change.field === 'messages') {
+          const { sender, text, mid } = change.value;
+          if (!sender || !text || !mid) continue;
+          const senderId = sender.id;
+
+          // Check if this sender is already a lead via instagram_interactions
+          const { data: interaction } = await supabase
+            .from('instagram_interactions')
+            .select('lead_id, commenter_username')
+            .eq('commenter_id', senderId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (interaction && !interaction.lead_id) {
+            // Create lead from DM reply
+            const { data: newLead } = await supabase
+              .from('leads')
+              .insert({
+                org_id: orgId,
+                name: interaction.commenter_username || 'Instagram User',
+                phone: '',
+                source: 'Instagram Comment',
+                status: 'new',
+                type: 'Homeowner',
+                area: 'South Florida',
+                potential: 'medium',
+              })
+              .select()
+              .single();
+
+            if (newLead) {
+              await supabase
+                .from('instagram_interactions')
+                .update({ lead_id: newLead.id })
+                .eq('commenter_id', senderId);
+            }
+          }
+          continue;
+        }
+
+        // Handle new comments — auto-DM
         if (change.field !== 'comments' && change.field !== 'mention') continue;
+        if (!autoReplyEnabled) continue;
+
         const { from, message, post_id, comment_id } = change.value;
         if (!from || !message) continue;
 
@@ -61,7 +109,6 @@ export async function POST(req: NextRequest) {
         const commenterName = from.name ?? 'Instagram User';
         const commentText = message;
 
-        // Generate DM
         const dmText = await generateSocialReply({
           channel: 'instagram',
           senderName: commenterName,
@@ -70,10 +117,8 @@ export async function POST(req: NextRequest) {
           isAfterHours: false,
         });
 
-        // Send DM
         const dmMsgId = await sendInstagramDM(commenterId, dmText);
 
-        // Save interaction
         await supabase.from('instagram_interactions').insert({
           org_id: orgId,
           commenter_username: commenterName,

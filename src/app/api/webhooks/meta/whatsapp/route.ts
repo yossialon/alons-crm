@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { supabase } from '@/lib/supabase';
 import { getOrgId } from '@/lib/tenant';
 import { verifyMetaSignature, sendWhatsAppMessage, generateSocialReply } from '@/lib/meta';
@@ -45,7 +46,6 @@ export async function POST(req: NextRequest) {
 
     const orgId = await getOrgId();
 
-    // Check auto-reply setting
     const { data: setting } = await supabase
       .from('app_settings')
       .select('value')
@@ -67,7 +67,6 @@ export async function POST(req: NextRequest) {
           const senderName = contacts?.[0]?.profile?.name ?? 'WhatsApp User';
           const isHot = HOT_KEYWORDS.some(k => text.toLowerCase().includes(k));
 
-          // Check if existing lead
           const { data: existingLead } = await supabase
             .from('leads')
             .select('id, name')
@@ -76,7 +75,6 @@ export async function POST(req: NextRequest) {
 
           let leadId = existingLead?.id ?? null;
 
-          // Create lead if new
           if (!existingLead) {
             const { data: newLead } = await supabase
               .from('leads')
@@ -95,14 +93,14 @@ export async function POST(req: NextRequest) {
             leadId = newLead?.id ?? null;
           }
 
-          // Save inbound message
           await supabase.from('social_messages').insert({
             org_id: orgId,
             platform: 'whatsapp',
+            external_id: msg.id,
             thread_id: phone,
             sender_name: senderName,
             sender_phone: phone,
-            message: text,
+            content: text,
             direction: 'inbound',
             is_hot: isHot,
             is_read: false,
@@ -110,7 +108,6 @@ export async function POST(req: NextRequest) {
             meta_message_id: msg.id,
           });
 
-          // Auto-reply
           if (autoReplyEnabled) {
             const hour = new Date().getHours();
             const replyText = await generateSocialReply({
@@ -123,15 +120,15 @@ export async function POST(req: NextRequest) {
 
             const msgId = await sendWhatsAppMessage(phone, replyText);
 
-            // Save outbound message
             if (msgId) {
               await supabase.from('social_messages').insert({
                 org_id: orgId,
                 platform: 'whatsapp',
+                external_id: msgId,
                 thread_id: phone,
                 sender_name: "Alon's Kitchens",
                 sender_phone: phone,
-                message: replyText,
+                content: replyText,
                 direction: 'outbound',
                 is_read: true,
                 is_hot: false,

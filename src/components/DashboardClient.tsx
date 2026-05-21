@@ -22,10 +22,12 @@ import ProjectsTab from '@/components/tabs/ProjectsTab';
 import AnalyticsTab from '@/components/tabs/AnalyticsTab';
 import CustomersTab from '@/components/tabs/CustomersTab';
 import SocialTab from '@/components/tabs/SocialTab';
+import CreativeStudioTab from '@/components/tabs/CreativeStudioTab';
 import OutreachTab from '@/components/tabs/OutreachTab';
 import MarketingTab from '@/components/tabs/MarketingTab';
 import SettingsTab from '@/components/tabs/SettingsTab';
 import JobCompletionModal from '@/components/JobCompletionModal';
+import AgentChat from '@/components/AgentChat';
 import { Settings, UserCheck } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -208,6 +210,7 @@ export default function DashboardPage() {
         {tab === 'social'    && <SocialTab />}
         {tab === 'outreach'  && <OutreachTab leads={leads.map((l) => ({ id: l.id, name: l.name }))} />}
         {tab === 'marketing' && <MarketingTab />}
+        {tab === 'creative' && <CreativeStudioTab />}
 
         {/* ── Placeholder tabs ── */}
         {tab === 'employees' && <PlaceholderPage icon={<UserCheck size={40} />} title="Employees" desc="Manage your team, assign leads, and track performance. Coming soon." />}
@@ -239,6 +242,9 @@ export default function DashboardPage() {
           onComplete={() => { setShowJobCompletion(false); setJobCompletionLead(null); }}
         />
       )}
+
+      {/* Boss Agent floating chat */}
+      <AgentChat />
     </>
   );
 }

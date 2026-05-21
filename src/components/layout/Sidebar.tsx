@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Search, ClipboardList,
   Building2, Package, Settings,
   LogOut, ChevronRight, X,
-  Columns2, FolderOpen, CheckSquare, BarChart2, MessageCircle, Send, Megaphone,
+  Columns2, FolderOpen, CheckSquare, BarChart2, MessageCircle, Send, Megaphone, Wand2,
 } from 'lucide-react';
 import { useTab, AppTab } from '@/contexts/TabContext';
 import { logout } from '@/lib/api';
@@ -27,9 +27,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'tasks',     label: 'Tasks',        icon: CheckSquare,     section: 'BUSINESS' },
   { id: 'suppliers', label: 'Suppliers',    icon: Package,         section: 'BUSINESS' },
   { id: 'outreach',  label: 'Outreach',     icon: Send,            section: 'BUSINESS' },
-  { id: 'analytics',  label: 'Analytics',    icon: BarChart2,     section: 'INSIGHTS' },
-  { id: 'social',     label: 'Social Inbox', icon: MessageCircle, section: 'INSIGHTS' },
-  { id: 'marketing',  label: 'Marketing',    icon: Megaphone,     section: 'INSIGHTS' },
+  { id: 'analytics',  label: 'Analytics',       icon: BarChart2,     section: 'INSIGHTS' },
+  { id: 'social',     label: 'Social Inbox',    icon: MessageCircle, section: 'INSIGHTS' },
+  { id: 'marketing',  label: 'Marketing',       icon: Megaphone,     section: 'INSIGHTS' },
+  { id: 'creative',   label: 'Creative Studio', icon: Wand2,         section: 'INSIGHTS' },
 ];
 
 function NavLink({ item }: { item: NavItem }) {

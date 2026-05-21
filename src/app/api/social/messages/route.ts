@@ -12,23 +12,27 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('social_messages')
-      .select('*, social_connections!inner(account_name, page_name)')
+      .select('*')
       .eq('org_id', orgId)
       .order('created_at', { ascending: false })
       .limit(200);
 
-    if (!threadId)        query = query.eq('direction', 'inbound');
+    // When fetching a single thread, return all directions; otherwise list only inbound
+    if (!threadId) query = query.eq('direction', 'inbound');
     if (platform !== 'all') query = query.eq('platform', platform);
-    if (unreadOnly)       query = query.is('read_at', null);
-    if (threadId)         query = query.eq('thread_id', threadId);
+    if (unreadOnly) query = query.eq('is_read', false);
+    if (threadId)   query = query.eq('thread_id', threadId);
 
     const { data, error } = await query;
     if (error) throw new Error(error.message);
 
-    const rows = (data ?? []).map(({ social_connections, ...msg }) => ({
-      ...msg,
-      account_name: (social_connections as { account_name: string; page_name: string } | null)?.account_name ?? null,
-      page_name:    (social_connections as { account_name: string; page_name: string } | null)?.page_name    ?? null,
+    // Normalise: the original schema uses `content`; webhook inserts may use `message`.
+    // Return a `message` field that callers can rely on regardless of which column exists.
+    const rows = (data ?? []).map(row => ({
+      ...row,
+      message: (row as Record<string, unknown>).message
+        ?? (row as Record<string, unknown>).content
+        ?? '',
     }));
 
     return NextResponse.json(rows);
@@ -42,19 +46,18 @@ export async function PATCH(req: NextRequest) {
   try {
     const orgId = await getOrgId();
     const { id, thread_id } = await req.json().catch(() => ({}));
-    const now = new Date().toISOString();
 
     if (thread_id) {
       await supabase
         .from('social_messages')
-        .update({ read_at: now })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('org_id', orgId)
         .eq('thread_id', thread_id)
-        .is('read_at', null);
+        .eq('is_read', false);
     } else if (id) {
       await supabase
         .from('social_messages')
-        .update({ read_at: now })
+        .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('id', id)
         .eq('org_id', orgId);
     }

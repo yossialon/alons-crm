@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MessageSquare, Instagram, Megaphone, RefreshCw, Flame, UserPlus, Send, Sparkles, Circle } from 'lucide-react';
+import { MessageSquare, Instagram, Megaphone, RefreshCw, Flame, UserPlus, Send, Sparkles, Circle, CheckCheck } from 'lucide-react';
 
 type SocialMessage = {
   id: string;
@@ -48,6 +48,8 @@ export default function SocialTab() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>('all');
   const [activeThread, setActiveThread] = useState<string | null>(null);
+  const [threadMessages, setThreadMessages] = useState<SocialMessage[]>([]);
+  const [threadLoading, setThreadLoading] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [suggesting, setSuggesting] = useState(false);
   const [sending, setSending] = useState(false);
@@ -66,7 +68,34 @@ export default function SocialTab() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Group messages into threads
+  // Load full thread (inbound + outbound) when a thread is expanded
+  const openThread = useCallback(async (threadId: string) => {
+    if (activeThread === threadId) {
+      setActiveThread(null);
+      setThreadMessages([]);
+      return;
+    }
+    setActiveThread(threadId);
+    setThreadMessages([]);
+    setReplyText('');
+    setThreadLoading(true);
+    try {
+      const res = await fetch(`/api/social/messages?thread_id=${encodeURIComponent(threadId)}`);
+      const data = await res.json() as SocialMessage[];
+      setThreadMessages(Array.isArray(data) ? data : []);
+      // Mark thread as read
+      fetch('/api/social/messages', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: threadId }),
+      }).catch(() => {});
+    } catch {
+      setThreadMessages([]);
+    }
+    setThreadLoading(false);
+  }, [activeThread]);
+
+  // Group inbound messages into thread previews
   const platformMessages = messages.filter(m =>
     subTab === 'whatsapp' ? m.platform === 'whatsapp' : m.platform === 'instagram'
   );
@@ -106,12 +135,15 @@ export default function SocialTab() {
   if (filter === 'hot') threads = threads.filter(t => t.is_hot);
 
   const waUnread = messages.filter(m => m.platform === 'whatsapp' && !m.is_read).length;
+  const hotCount = messages.filter(m => m.is_hot && !m.is_read).length;
   const activeThreadData = threads.find(t => t.thread_id === activeThread);
 
   const suggestReply = async () => {
     if (!activeThreadData) return;
     setSuggesting(true);
-    const lastInbound = [...activeThreadData.messages].reverse().find(m => m.direction === 'inbound');
+    const lastInbound = [...(threadMessages.length ? threadMessages : activeThreadData.messages)]
+      .reverse()
+      .find(m => m.direction === 'inbound');
     const res = await fetch('/api/social/suggest-reply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -138,6 +170,12 @@ export default function SocialTab() {
     }).catch(() => {});
     setReplyText('');
     setSending(false);
+    // Reload full thread after sending
+    if (activeThread) {
+      const res = await fetch(`/api/social/messages?thread_id=${encodeURIComponent(activeThread)}`);
+      const data = await res.json() as SocialMessage[];
+      setThreadMessages(Array.isArray(data) ? data : []);
+    }
     load();
   };
 
@@ -157,6 +195,8 @@ export default function SocialTab() {
     load();
   };
 
+  const displayMessages = threadMessages.length ? threadMessages : (activeThreadData?.messages ?? []);
+
   return (
     <div className="space-y-4">
       {/* Sub-tabs */}
@@ -169,7 +209,7 @@ export default function SocialTab() {
           ].map(t => (
             <button
               key={t.id}
-              onClick={() => { setSubTab(t.id); setActiveThread(null); }}
+              onClick={() => { setSubTab(t.id); setActiveThread(null); setThreadMessages([]); }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors relative ${subTab === t.id ? 'text-brand-700 border-b-2 border-brand-700 bg-brand-50/50' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <t.icon size={14} />
@@ -192,7 +232,12 @@ export default function SocialTab() {
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filter === f ? 'bg-brand-700 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
               >
-                {f === 'hot' ? '🔥 Hot' : f.charAt(0).toUpperCase() + f.slice(1)}
+                {f === 'hot' ? (
+                  <span className="flex items-center gap-1">
+                    <Flame size={10} className="text-red-400" />
+                    Hot{hotCount > 0 && ` (${hotCount})`}
+                  </span>
+                ) : f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
             <button onClick={load} className="ml-auto text-slate-400 hover:text-slate-600">
@@ -227,10 +272,10 @@ export default function SocialTab() {
                 </div>
               </div>
               {al.leads && (
-                <div className="flex gap-2 mt-2 text-xs text-slate-500">
+                <div className="flex gap-3 mt-2 text-xs text-slate-500">
                   {al.leads.phone && <span>📞 {al.leads.phone}</span>}
                   {al.leads.email && <span>✉️ {al.leads.email}</span>}
-                  <span className="ml-auto capitalize">{al.leads.status}</span>
+                  <span className="ml-auto capitalize px-2 py-0.5 bg-slate-100 rounded-full">{al.leads.status}</span>
                 </div>
               )}
             </div>
@@ -255,25 +300,36 @@ export default function SocialTab() {
                 {/* Thread header */}
                 <button
                   className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50 transition-colors"
-                  onClick={() => setActiveThread(activeThread === thread.thread_id ? null : thread.thread_id)}
+                  onClick={() => openThread(thread.thread_id)}
                 >
-                  <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm shrink-0">
+                  {/* Avatar */}
+                  <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm shrink-0 relative">
                     {thread.sender_name.charAt(0).toUpperCase()}
+                    {thread.is_hot && (
+                      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                        <Flame size={9} className="text-white" />
+                      </span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm text-slate-800 truncate">{thread.sender_name}</span>
-                      {thread.is_hot && <Flame size={12} className="text-red-500 shrink-0" />}
-                      {thread.lead_id && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium shrink-0">In CRM</span>}
+                      {thread.lead_id && (
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium shrink-0">In CRM</span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 truncate mt-0.5">{thread.last_message}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-xs text-slate-400">{new Date(thread.last_time).toLocaleDateString()}</p>
-                    {thread.unread > 0 && (
+                    <p className="text-xs text-slate-400">
+                      {formatTime(thread.last_time)}
+                    </p>
+                    {thread.unread > 0 ? (
                       <span className="inline-flex items-center justify-center w-5 h-5 bg-brand-700 text-white text-[10px] font-bold rounded-full mt-1">
-                        {thread.unread}
+                        {thread.unread > 9 ? '9+' : thread.unread}
                       </span>
+                    ) : (
+                      <CheckCheck size={13} className="text-slate-300 mt-1 ml-auto" />
                     )}
                   </div>
                 </button>
@@ -282,14 +338,24 @@ export default function SocialTab() {
                 {activeThread === thread.thread_id && (
                   <div className="border-t border-slate-100">
                     {/* Messages */}
-                    <div className="p-3 space-y-2 max-h-64 overflow-y-auto bg-slate-50/50">
-                      {[...thread.messages]
+                    <div className="p-3 space-y-2 max-h-72 overflow-y-auto bg-slate-50/50">
+                      {threadLoading && (
+                        <p className="text-center text-xs text-slate-400 py-4">Loading conversation…</p>
+                      )}
+                      {!threadLoading && [...displayMessages]
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                         .map(msg => (
                           <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${msg.direction === 'outbound' ? 'bg-brand-700 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'}`}>
+                            <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
+                              msg.direction === 'outbound'
+                                ? 'bg-brand-700 text-white rounded-tr-sm'
+                                : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'
+                            }`}>
                               {msg.message}
                               {msg.is_hot && <span className="ml-1 text-xs">🔥</span>}
+                              <p className={`text-[10px] mt-1 ${msg.direction === 'outbound' ? 'text-white/60' : 'text-slate-400'}`}>
+                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
                             </div>
                           </div>
                         ))}
@@ -309,7 +375,10 @@ export default function SocialTab() {
                         <textarea
                           value={replyText}
                           onChange={e => setReplyText(e.target.value)}
-                          placeholder="Type a reply…"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); }
+                          }}
+                          placeholder="Type a reply… (Enter to send)"
                           rows={2}
                           className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-brand-700"
                         />
@@ -342,4 +411,13 @@ export default function SocialTab() {
       )}
     </div>
   );
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffH = (now.getTime() - d.getTime()) / 3600000;
+  if (diffH < 24) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (diffH < 48 * 24) return d.toLocaleDateString([], { weekday: 'short' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }

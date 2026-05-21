@@ -18,6 +18,7 @@ const TAB_LABELS: Record<AppTab, string> = {
   social:    'Social Inbox',
   outreach:  'Outreach',
   marketing: 'Marketing',
+  creative:  'Creative Studio',
   settings:  'Settings',
 };
 
