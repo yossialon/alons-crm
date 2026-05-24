@@ -13,7 +13,7 @@ export default function BottomNav() {
   const { tab, setTab, setSidebarOpen } = useTab();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 safe-area-pb">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 safe-area-pb">
       <div className="flex items-stretch h-16">
         {ITEMS.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
@@ -23,8 +23,8 @@ export default function BottomNav() {
               onClick={() => setTab(id)}
               className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors
                 ${active
-                  ? 'text-amber-600 dark:text-amber-400'
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  ? 'text-brand-700 dark:text-brand-400'
+                  : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                 }`}
             >
               <Icon size={20} strokeWidth={active ? 2.5 : 1.75} />
@@ -36,11 +36,9 @@ export default function BottomNav() {
         {/* More → opens full sidebar drawer */}
         <button
           onClick={() => setSidebarOpen(true)}
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors relative"
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
         >
-          <span className="relative">
-            <MoreHorizontal size={20} strokeWidth={1.75} />
-          </span>
+          <MoreHorizontal size={20} strokeWidth={1.75} />
           More
         </button>
       </div>

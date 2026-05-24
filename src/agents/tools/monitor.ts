@@ -5,13 +5,19 @@ import { createClient } from '@supabase/supabase-js';
 import type { HealthCheck } from '@/agents/types';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const ANON_KEY     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ANON_KEY;
 const BASE_URL     = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 const ALERT_MS     = Number(process.env.TECH_ALERT_THRESHOLD_MS ?? '3000');
 
 function serviceClient() {
-  return createClient(SUPABASE_URL, SERVICE_KEY);
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !key) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is required for monitor operations. ' +
+      'This module must only run server-side. ' +
+      'Never fall back to the public anon key.',
+    );
+  }
+  return createClient(SUPABASE_URL, key);
 }
 
 async function timed<T>(fn: () => Promise<T>): Promise<{ result: T; ms: number }> {
@@ -125,7 +131,7 @@ export async function checkInstagramApi(): Promise<HealthCheck> {
 
 /** 6. Storage bucket reachability */
 export async function checkStorage(): Promise<HealthCheck> {
-  if (!SERVICE_KEY || !SUPABASE_URL) return { name: 'storage', status: 'warn', details: 'Supabase not configured' };
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) return { name: 'storage', status: 'warn', details: 'Supabase not configured' };
   try {
     const { ms } = await timed(() =>
       serviceClient().storage.from('brand-assets').list('', { limit: 1 })

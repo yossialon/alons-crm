@@ -60,8 +60,7 @@ export default function DashboardPage() {
 
   // ── Inject action buttons into the Header based on active tab ──────────────
   useEffect(() => {
-    const btnClass =
-      'inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-brand-700 hover:bg-brand-600 shadow-sm transition-colors';
+    const btnClass = 'btn-primary inline-flex items-center gap-1.5';
     if (tab === 'leads' || tab === 'kanban') {
       setHeaderAction(
         <button className={btnClass} onClick={() => setShowAddLead(true)}>
@@ -169,53 +168,37 @@ export default function DashboardPage() {
     <>
       <Toast toast={toast} />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-16 space-y-0">
-        {/* ── Main tabs ── */}
-        {tab === 'dashboard' && (
-          <DashboardTab leads={leads} stats={stats} />
-        )}
-        {tab === 'leads' && (
-          <LeadsTab
-            leads={leads} onEdit={setEditLead} onDelete={handleDeleteLead}
-            onStatusChange={handleStatusChange} onMessage={setMsgLead}
-            onCompleteJob={(lead) => { setJobCompletionLead(lead); setShowJobCompletion(true); }}
-          />
-        )}
-        {tab === 'find' && (
-          <FindLeadsTab
-            existingLeads={leads}
-            onImport={handleImportFindLead}
-            onMessage={(lead) => setMsgLead(lead as Lead)}
-          />
-        )}
-        {tab === 'audit' && <LeadAuditTab />}
-        {tab === 'suppliers' && (
-          <SuppliersTab
-            suppliers={suppliers} onEdit={setEditSupplier} onDelete={handleDeleteSupplier}
-          />
-        )}
+      {/* Redesigned tabs own their padding ──────────────────────────────────── */}
+      {tab === 'dashboard' && <DashboardTab leads={leads} stats={stats} />}
+      {tab === 'leads'     && (
+        <LeadsTab
+          leads={leads} onEdit={setEditLead} onDelete={handleDeleteLead}
+          onStatusChange={handleStatusChange} onMessage={setMsgLead}
+          onCompleteJob={(lead) => { setJobCompletionLead(lead); setShowJobCompletion(true); }}
+        />
+      )}
+      {tab === 'kanban'    && <KanbanTab leads={leads} onStatusChange={handleStatusChange} onEdit={setEditLead} />}
+      {tab === 'tasks'     && <TasksTab />}
+      {tab === 'social'    && <SocialTab />}
 
-        {/* ── New feature tabs ── */}
-        {tab === 'kanban' && (
-          <KanbanTab
-            leads={leads}
-            onStatusChange={handleStatusChange}
-            onEdit={setEditLead}
-          />
-        )}
-        {tab === 'tasks'     && <TasksTab />}
-        {tab === 'projects'  && <ProjectsTab />}
-        {tab === 'analytics' && <AnalyticsTab leads={leads} />}
-        {tab === 'customers' && <CustomersTab />}
-        {tab === 'social'    && <SocialTab />}
-        {tab === 'outreach'  && <OutreachTab leads={leads.map((l) => ({ id: l.id, name: l.name }))} />}
-        {tab === 'marketing' && <MarketingTab />}
-        {tab === 'creative' && <CreativeStudioTab />}
-
-        {/* ── Placeholder tabs ── */}
-        {tab === 'employees' && <PlaceholderPage icon={<UserCheck size={40} />} title="Employees" desc="Manage your team, assign leads, and track performance. Coming soon." />}
-        {tab === 'settings'  && <SettingsTab />}
-      </div>
+      {/* Unredesigned tabs — wrapped with standard padding ──────────────────── */}
+      {(tab === 'find' || tab === 'audit' || tab === 'suppliers' || tab === 'projects' ||
+        tab === 'analytics' || tab === 'customers' || tab === 'outreach' || tab === 'marketing' ||
+        tab === 'creative' || tab === 'employees' || tab === 'settings') && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-16">
+          {tab === 'find'      && <FindLeadsTab existingLeads={leads} onImport={handleImportFindLead} onMessage={(lead) => setMsgLead(lead as Lead)} />}
+          {tab === 'audit'     && <LeadAuditTab />}
+          {tab === 'suppliers' && <SuppliersTab suppliers={suppliers} onEdit={setEditSupplier} onDelete={handleDeleteSupplier} />}
+          {tab === 'projects'  && <ProjectsTab />}
+          {tab === 'analytics' && <AnalyticsTab leads={leads} />}
+          {tab === 'customers' && <CustomersTab />}
+          {tab === 'outreach'  && <OutreachTab leads={leads.map((l) => ({ id: l.id, name: l.name }))} />}
+          {tab === 'marketing' && <MarketingTab />}
+          {tab === 'creative'  && <CreativeStudioTab />}
+          {tab === 'employees' && <PlaceholderPage icon={<UserCheck size={40} />} title="Employees" desc="Manage your team, assign leads, and track performance. Coming soon." />}
+          {tab === 'settings'  && <SettingsTab />}
+        </div>
+      )}
 
       {/* ── Modals ── */}
       {(showAddLead || editLead) && (

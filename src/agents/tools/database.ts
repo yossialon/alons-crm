@@ -2,21 +2,27 @@
 // Helpers for logging agent runs and reading system state.
 
 import { createClient } from '@supabase/supabase-js';
-import type { AgentName, AgentStatus, AgentRun, HealthCheck } from '@/agents/types';
+import type { AgentName, AgentStatus, AgentTrigger, AgentRun, AgentTask, AgentTaskStatus, HealthCheck } from '@/agents/types';
 
 const ORG_ID = process.env.ORG_ID ?? '00000000-0000-0000-0000-000000000001';
 
 function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  // Prefer service role for agent writes (bypasses RLS)
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is required for agent database operations. ' +
+      'This module must only run server-side. ' +
+      'Never fall back to the public anon key.',
+    );
+  }
   return createClient(url, key);
 }
 
 /** Insert a new agent_run row and return its id */
 export async function logAgentRun(
   agentName: AgentName,
-  trigger: AgentRun['trigger'] = 'cron',
+  trigger: AgentTrigger = 'cron',
 ): Promise<string> {
   const { data, error } = await db()
     .from('agent_runs')
@@ -132,15 +138,27 @@ export async function saveTechRecommendation(rec: {
   await db().from('tech_recommendations').insert({ org_id: ORG_ID, ...rec });
 }
 
-/** Save a campaign recommendation */
+/** Save a campaign recommendation (confidence is optional — NULL when no learning data) */
 export async function saveCampaignRecommendation(rec: {
-  week_of: string;
-  platform: string;
-  insight: string;
-  action: string;
-  impact: string;
+  week_of:     string;
+  platform:    string;
+  insight:     string;
+  action:      string;
+  impact:      string;
+  confidence?: number;
 }): Promise<void> {
   await db().from('campaign_recommendations').insert({ org_id: ORG_ID, ...rec });
+}
+
+/** Persist a learned pattern from the weekly learning analysis pass */
+export async function saveCampaignLearning(learning: {
+  week_of:          string;
+  pattern:          string;
+  confidence_score: number;
+  based_on_weeks:   number;
+  reasoning?:       string;
+}): Promise<void> {
+  await db().from('campaign_learnings').insert({ org_id: ORG_ID, ...learning });
 }
 
 /** Check if a lead already exists by phone or email */
@@ -196,4 +214,82 @@ export async function getDashboardStats(): Promise<{
     pendingTasks:   tasksRes.data?.length ?? 0,
     recentMessages: msgsRes.data?.length ?? 0,
   };
+}
+
+// ── Agent Task Queue ──────────────────────────────────────────────────────────
+
+/**
+ * Enqueue a task for another agent to process asynchronously.
+ * Returns the new task's UUID.
+ */
+export async function enqueueAgentTask(task: {
+  from_agent: AgentName;
+  to_agent:   AgentName;
+  task_type:  string;
+  payload?:   Record<string, unknown>;
+}): Promise<string> {
+  const { data, error } = await db()
+    .from('agent_tasks')
+    .insert({
+      org_id:     ORG_ID,
+      from_agent: task.from_agent,
+      to_agent:   task.to_agent,
+      task_type:  task.task_type,
+      payload:    task.payload ?? {},
+      status:     'pending',
+    })
+    .select('id')
+    .single();
+  if (error || !data) throw new Error(`enqueueAgentTask failed: ${error?.message}`);
+  return (data as { id: string }).id;
+}
+
+/**
+ * Fetch the oldest pending tasks destined for a specific agent.
+ * Call this at the start of an agent run to drain its queue.
+ */
+export async function dequeueAgentTasks(
+  toAgent: AgentName,
+  limit = 10,
+): Promise<AgentTask[]> {
+  const { data } = await db()
+    .from('agent_tasks')
+    .select('*')
+    .eq('to_agent', toAgent)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  return (data ?? []) as AgentTask[];
+}
+
+/**
+ * Mark a task as done or failed after the receiving agent processes it.
+ */
+export async function resolveAgentTask(
+  taskId:  string,
+  outcome: { status: 'done' | 'failed'; error?: string },
+): Promise<void> {
+  await db()
+    .from('agent_tasks')
+    .update({
+      status:      outcome.status,
+      finished_at: new Date().toISOString(),
+      ...(outcome.error ? { error: outcome.error } : {}),
+    })
+    .eq('id', taskId);
+}
+
+/**
+ * Mark a task as 'processing' (so a second worker doesn't pick it up) and
+ * return the updated row. Returns null if the task was already claimed.
+ */
+export async function claimAgentTask(taskId: string): Promise<AgentTask | null> {
+  const { data } = await db()
+    .from('agent_tasks')
+    .update({ status: 'processing' as AgentTaskStatus, started_at: new Date().toISOString() })
+    .eq('id', taskId)
+    .eq('status', 'pending')   // only claim if still pending (optimistic lock)
+    .select('*')
+    .single();
+  return (data as AgentTask) ?? null;
 }

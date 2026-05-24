@@ -1,34 +1,42 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Menu, Search, Bell, ChevronDown, Sun, Moon } from 'lucide-react';
+import { Menu, Search, Bell, Sun, Moon, Plus } from 'lucide-react';
 import { useTab, AppTab } from '@/contexts/TabContext';
 
-const TAB_LABELS: Record<AppTab, string> = {
-  dashboard: 'Dashboard',
-  leads:     'Leads',
-  kanban:    'Pipeline',
-  find:      'Find Leads',
-  audit:     'Lead Audit',
-  customers: 'Customers',
-  projects:  'Projects',
-  tasks:     'Tasks',
-  suppliers: 'Suppliers',
-  analytics: 'Analytics',
-  employees: 'Employees',
-  social:    'Social Inbox',
-  outreach:  'Outreach',
-  marketing: 'Marketing',
-  creative:  'Creative Studio',
-  settings:  'Settings',
+/* ── Tab metadata ──────────────────────────────────────────────────────────── */
+const TAB_META: Record<AppTab, { label: string; crumb?: string }> = {
+  dashboard: { label: 'Dashboard'      },
+  leads:     { label: 'Leads',         crumb: 'CRM' },
+  kanban:    { label: 'Pipeline',      crumb: 'CRM' },
+  find:      { label: 'Find Leads',    crumb: 'CRM' },
+  audit:     { label: 'Lead Audit',    crumb: 'CRM' },
+  social:    { label: 'Social Inbox',  crumb: 'Outreach' },
+  outreach:  { label: 'Outreach',      crumb: 'Outreach' },
+  marketing: { label: 'Marketing',     crumb: 'Outreach' },
+  creative:  { label: 'Creative Studio', crumb: 'Outreach' },
+  customers: { label: 'Customers',     crumb: 'Business' },
+  projects:  { label: 'Projects',      crumb: 'Business' },
+  tasks:     { label: 'Tasks',         crumb: 'Business' },
+  suppliers: { label: 'Suppliers',     crumb: 'Business' },
+  analytics: { label: 'Analytics',     crumb: 'Business' },
+  employees: { label: 'Employees',     crumb: 'Business' },
+  settings:  { label: 'Settings'       },
 };
 
-export default function Header() {
-  const { tab, headerAction, setSidebarOpen } = useTab();
-  const [searchVal, setSearchVal] = useState('');
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [dark, setDark] = useState(false);
+/* ── Notifications data (static for now) ──────────────────────────────────── */
+const NOTIFICATIONS = [
+  { id: 1, text: 'David Cohen moved to Qualified',  time: '2h ago', color: 'bg-brand-500'  },
+  { id: 2, text: 'New supplier added: WoodCraft',   time: '1d ago', color: 'bg-info-500'   },
+] as const;
 
-  // Sync dark state with the DOM class (set by the no-flash script)
+/* ── Component ─────────────────────────────────────────────────────────────── */
+export default function Header() {
+  const { tab, setTab, headerAction, setSidebarOpen } = useTab();
+  const [searchVal,  setSearchVal]  = useState('');
+  const [notifOpen,  setNotifOpen]  = useState(false);
+  const [dark,       setDark]       = useState(false);
+
+  // Mirror the `dark` class that the no-flash script sets
   useEffect(() => {
     setDark(document.documentElement.classList.contains('dark'));
   }, []);
@@ -40,71 +48,85 @@ export default function Header() {
     try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch {}
   };
 
-  const notifications = [
-    { id: 2, text: 'David Cohen moved to Qualified', time: '2h ago', dot: 'bg-green-500' },
-    { id: 3, text: 'New supplier added: WoodCraft', time: '1d ago', dot: 'bg-blue-500' },
-  ] as { id: number; text: string; time: string; dot: string }[];
-
-  const unread = notifications.length;
+  const meta   = TAB_META[tab];
+  const unread = NOTIFICATIONS.length;
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center px-4 sm:px-6 gap-3 shadow-sm">
-      {/* Hamburger — tablet & mobile (hidden on desktop) */}
+    <header className="sticky top-0 z-30 h-[52px] bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center px-4 gap-3">
+
+      {/* Mobile hamburger */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="md:hidden p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="md:hidden p-1.5 rounded-[8px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         aria-label="Open menu"
       >
-        <Menu size={20} />
+        <Menu size={18} />
       </button>
 
-      {/* Page title */}
-      <div className="hidden sm:block">
-        <h1 className="text-base font-semibold text-slate-800 dark:text-slate-100">
-          {TAB_LABELS[tab]}
+      {/* Title + breadcrumb */}
+      <div className="hidden sm:flex flex-col leading-none">
+        {meta.crumb && (
+          <span className="text-[10px] font-semibold tracking-widest text-zinc-400 dark:text-zinc-500 uppercase mb-0.5">
+            {meta.crumb}
+          </span>
+        )}
+        <h1 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+          {meta.label}
         </h1>
-        <p className="text-[11px] text-slate-400 dark:text-slate-500">Alon&apos;s Kitchens · South Florida</p>
       </div>
 
       <div className="flex-1" />
 
-      {/* Search — hidden on mobile */}
-      <div className="relative hidden md:block w-56 lg:w-72">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      {/* Search — 180px, hidden on mobile */}
+      <div className="relative hidden md:block">
+        <Search
+          size={13}
+          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"
+        />
         <input
           type="text"
           value={searchVal}
           onChange={(e) => setSearchVal(e.target.value)}
-          placeholder="Search leads, suppliers…"
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-xl transition-all
-                     bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400
-                     focus:outline-none focus:border-brand-700 focus:ring-1 focus:ring-brand-700/20
-                     dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
+          placeholder="Search…"
+          className="w-[180px] pl-8 pr-3 py-1.5 text-xs rounded-[8px] transition-all
+                     bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700
+                     text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500
+                     focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20"
         />
       </div>
 
-      {/* Contextual action button */}
+      {/* Contextual action (injected by active tab) */}
       {headerAction}
 
-      {/* Theme toggle */}
+      {/* New Lead — primary CTA shortcut */}
+      <button
+        onClick={() => setTab('leads')}
+        className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold
+                   text-white bg-brand hover:bg-brand-700 transition-colors shadow-sm"
+      >
+        <Plus size={13} />
+        New Lead
+      </button>
+
+      {/* Dark mode toggle */}
       <button
         onClick={toggleDark}
-        className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="p-1.5 rounded-[8px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         aria-label="Toggle dark mode"
       >
-        {dark ? <Sun size={18} /> : <Moon size={18} />}
+        {dark ? <Sun size={16} /> : <Moon size={16} />}
       </button>
 
       {/* Notifications */}
       <div className="relative">
         <button
           onClick={() => setNotifOpen((p) => !p)}
-          className="relative p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="relative p-1.5 rounded-[8px] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           aria-label="Notifications"
         >
-          <Bell size={19} />
+          <Bell size={16} />
           {unread > 0 && (
-            <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-coral text-white text-[8px] font-bold rounded-full flex items-center justify-center">
               {unread}
             </span>
           )}
@@ -113,24 +135,26 @@ export default function Header() {
         {notifOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-            <div className="absolute right-0 top-11 z-20 w-80 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Notifications</span>
-                <span className="text-xs bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 font-bold px-2 py-0.5 rounded-full">{unread} new</span>
+            <div className="absolute right-0 top-10 z-20 w-72 card shadow-xl overflow-hidden animate-fade-in">
+              <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Notifications</span>
+                <span className="text-[10px] bg-coral/10 text-coral font-bold px-2 py-0.5 rounded-full">
+                  {unread} new
+                </span>
               </div>
-              <div className="divide-y divide-slate-50 dark:divide-slate-800">
-                {notifications.map((n) => (
-                  <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.dot}`} />
+              <div className="divide-y divide-zinc-50 dark:divide-zinc-800">
+                {NOTIFICATIONS.map((n) => (
+                  <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${n.color}`} />
                     <div className="min-w-0">
-                      <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-snug">{n.text}</p>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{n.time}</p>
+                      <p className="text-xs text-zinc-700 dark:text-zinc-300 font-medium leading-snug">{n.text}</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">{n.time}</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800">
-                <button className="text-xs text-brand-700 dark:text-amber-500 font-semibold hover:underline">
+              <div className="px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800">
+                <button className="text-xs text-brand-700 dark:text-brand-400 font-semibold hover:underline">
                   View all notifications
                 </button>
               </div>
@@ -139,17 +163,6 @@ export default function Header() {
         )}
       </div>
 
-      {/* User avatar */}
-      <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800 cursor-pointer group">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-brand-700 flex items-center justify-center text-sm font-bold text-white shadow-sm">
-          A
-        </div>
-        <div className="hidden sm:block">
-          <div className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">Admin</div>
-          <div className="text-[10px] text-slate-400 dark:text-slate-500">Owner</div>
-        </div>
-        <ChevronDown size={13} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
-      </div>
     </header>
   );
 }

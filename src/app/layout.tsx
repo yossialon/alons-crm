@@ -1,11 +1,19 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { DM_Sans, DM_Mono } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
+const dmSans = DM_Sans({
+  subsets:  ['latin'],
+  variable: '--font-dm-sans',
+  display:  'swap',
+  weight:   ['300', '400', '500', '600', '700'],
+});
+
+const dmMono = DM_Mono({
+  subsets:  ['latin'],
+  variable: '--font-dm-mono',
+  display:  'swap',
+  weight:   ['300', '400', '500'],
 });
 
 export const metadata: Metadata = {
@@ -19,7 +27,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)',  color: '#0f172a' },
+    { media: '(prefers-color-scheme: dark)',  color: '#09090b' },
   ],
 };
 
@@ -28,11 +36,11 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t===
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${dmSans.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }

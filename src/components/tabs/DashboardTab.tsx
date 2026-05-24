@@ -1,14 +1,15 @@
 'use client';
 import { useState } from 'react';
-import { Lead } from '@/types';
-import { StatusBadge, sourceIcon } from '../ui/Badges';
-import { MODEL } from '@/lib/constants';
 import {
   Users, CalendarPlus, TrendingUp, Package,
   Sparkles, RefreshCw, AlertCircle, Brain,
+  UserPlus, CheckCircle2, ArrowRight, Phone, Star,
 } from 'lucide-react';
+import { Lead } from '@/types';
+import { MODEL } from '@/lib/constants';
+import { StatCard, StatusTag, ActivityItem, LeadTag } from '@/components/ui/Primitives';
 
-// ── Stats interface ───────────────────────────────────────────────────────────
+/* ── Stats ────────────────────────────────────────────────────────────────── */
 
 interface Stats {
   total: number; new: number; qualified: number;
@@ -16,34 +17,17 @@ interface Stats {
   newThisWeek: number; activePipeline: number; pendingSuppliers: number;
 }
 
-// ── Hero stat card ────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, icon, accentBg, iconBg, iconColor }: {
-  label: string; value: number; sub: string;
-  icon: React.ReactNode; accentBg: string; iconBg: string; iconColor: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-start gap-4 relative overflow-hidden">
-      <div className={`absolute left-0 inset-y-0 w-1 rounded-l-2xl ${accentBg}`} />
-      <div className="flex-1 pl-1 min-w-0">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</p>
-        <p className="text-3xl font-black text-slate-800 leading-none tabular-nums">{value}</p>
-        <p className="text-xs text-slate-400 mt-1.5">{sub}</p>
-      </div>
-      <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
-        <span className={iconColor}>{icon}</span>
-      </div>
-    </div>
-  );
-}
-
-// ── AI Briefing section ───────────────────────────────────────────────────────
+/* ── AI Briefing ──────────────────────────────────────────────────────────── */
 
 function BriefingShimmer() {
   return (
     <div className="p-5 space-y-2.5">
-      {[90, 75, 100, 60, 85, 50, 70].map((w, i) => (
-        <div key={i} className="h-3 rounded-full bg-slate-200 animate-pulse" style={{ width: `${w}%` }} />
+      {[90, 75, 100, 60, 85, 50].map((w, i) => (
+        <div
+          key={i}
+          className="skeleton h-3 rounded-full"
+          style={{ width: `${w}%` }}
+        />
       ))}
     </div>
   );
@@ -116,65 +100,64 @@ Be direct, specific, and actionable. No filler.`;
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="card overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
-            <Brain size={17} className="text-violet-600" />
+          <div className="w-8 h-8 rounded-[8px] bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center shrink-0">
+            <Brain size={15} className="text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-800 leading-tight">AI Daily Briefing</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              {genTime ? `Generated at ${genTime} · Claude` : 'Powered by Claude · Uses your live CRM data'}
+            <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100 leading-tight">AI Daily Briefing</p>
+            <p className="text-[10px] text-muted mt-0.5">
+              {genTime ? `Generated at ${genTime} · Claude` : 'Powered by Claude · uses live CRM data'}
             </p>
           </div>
         </div>
         <button
           onClick={generate}
           disabled={loading}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
             text
-              ? 'text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200'
-              : 'text-white bg-violet-600 hover:bg-violet-500 shadow-sm'
+              ? 'text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-800'
+              : 'text-white bg-[#7F77DD] hover:bg-[#5F56C8] shadow-sm'
           }`}
         >
           {loading
-            ? <><RefreshCw size={13} className="animate-spin" /> Analyzing…</>
+            ? <><RefreshCw size={12} className="animate-spin" /> Analyzing…</>
             : text
-              ? <><RefreshCw size={13} /> Regenerate</>
-              : <><Sparkles size={13} /> Generate Briefing</>
+              ? <><RefreshCw size={12} /> Regenerate</>
+              : <><Sparkles size={12} /> Generate Briefing</>
           }
         </button>
       </div>
 
-      {/* Body */}
       {loading && <BriefingShimmer />}
 
       {error && !loading && (
-        <div className="flex items-start gap-3 p-5 bg-red-50 border-t border-red-100">
-          <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700 font-medium">{error}</p>
+        <div className="flex items-start gap-3 p-5 bg-red-50 dark:bg-red-950/20 border-t border-red-100 dark:border-red-900/30">
+          <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-700 dark:text-red-400 font-medium">{error}</p>
         </div>
       )}
 
       {text && !loading && (
         <div className="p-5">
-          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{text}</p>
-          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-1.5">
-            <Sparkles size={11} className="text-violet-400" />
-            <p className="text-[10px] text-slate-400">AI suggestions are a starting point — use your own judgement.</p>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">{text}</p>
+          <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-1.5">
+            <Sparkles size={10} className="text-purple-400" />
+            <p className="text-[10px] text-muted">AI suggestions are a starting point — use your own judgement.</p>
           </div>
         </div>
       )}
 
       {!text && !loading && !error && (
-        <div className="flex flex-col items-center justify-center py-10 text-center px-6">
-          <div className="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center mb-3">
-            <Brain size={22} className="text-violet-300" />
+        <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+          <div className="w-10 h-10 rounded-[10px] bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center mb-3">
+            <Brain size={20} className="text-purple-300 dark:text-purple-600" />
           </div>
-          <p className="text-sm font-semibold text-slate-600 mb-1">No briefing yet</p>
-          <p className="text-xs text-slate-400 max-w-xs">
+          <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-1">No briefing yet</p>
+          <p className="text-xs text-muted max-w-xs">
             Click "Generate Briefing" to get AI-powered call priorities based on your live lead data
           </p>
         </div>
@@ -183,7 +166,131 @@ Be direct, specific, and actionable. No filler.`;
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+/* ── Recent leads panel ───────────────────────────────────────────────────── */
+
+function RecentLeads({ leads }: { leads: Lead[] }) {
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800">
+        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">Recent Leads</p>
+        <span className="text-[11px] text-muted">{leads.length} total</span>
+      </div>
+      {leads.length === 0 ? (
+        <p className="text-muted text-sm text-center py-8">No leads yet.</p>
+      ) : (
+        <div className="divide-y divide-zinc-50 dark:divide-zinc-800/60">
+          {leads.slice(0, 6).map((l) => (
+            <div key={l.id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 truncate">{l.name}</p>
+                <p className="text-[10px] text-muted mt-0.5 truncate">{l.area}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                <LeadTag variant="type" value={l.type} />
+                <StatusTag status={l.status} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Activity Feed panel ──────────────────────────────────────────────────── */
+
+function buildActivity(leads: Lead[]) {
+  // Generate activity items from the most recently updated leads
+  const sorted = [...leads]
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .slice(0, 8);
+
+  function relTime(dateStr: string) {
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60_000);
+    if (diff < 1)   return 'just now';
+    if (diff < 60)  return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    return `${Math.floor(diff / 1440)}d ago`;
+  }
+
+  return sorted.map((l) => {
+    if (l.status === 'qualified') {
+      return {
+        id: l.id,
+        icon:  <CheckCircle2 />,
+        iconBg: 'bg-brand-50 dark:bg-brand-950/40',
+        iconColor: 'text-brand-600 dark:text-brand-400',
+        text:  `${l.name} marked as Qualified`,
+        meta:  l.area,
+        time:  relTime(l.updated_at),
+      };
+    }
+    if (l.status === 'contacted') {
+      return {
+        id: l.id,
+        icon:  <Phone />,
+        iconBg: 'bg-amber-50 dark:bg-amber-950/30',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        text:  `${l.name} contacted`,
+        meta:  l.area,
+        time:  relTime(l.updated_at),
+      };
+    }
+    if (l.status === 'closed') {
+      return {
+        id: l.id,
+        icon:  <Star />,
+        iconBg: 'bg-coral/10 dark:bg-coral/10',
+        iconColor: 'text-coral',
+        text:  `${l.name} closed`,
+        meta:  l.area,
+        time:  relTime(l.updated_at),
+      };
+    }
+    // new
+    return {
+      id: l.id,
+      icon:  <UserPlus />,
+      iconBg: 'bg-info-50 dark:bg-info-900/30',
+      iconColor: 'text-info-600 dark:text-info-400',
+      text:  `New lead: ${l.name}`,
+      meta:  `${l.type} · ${l.area}`,
+      time:  relTime(l.created_at),
+    };
+  });
+}
+
+function ActivityFeed({ leads }: { leads: Lead[] }) {
+  const items = buildActivity(leads);
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800">
+        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">Activity Feed</p>
+        <ArrowRight size={14} className="text-zinc-300 dark:text-zinc-600" />
+      </div>
+      {items.length === 0 ? (
+        <p className="text-muted text-sm text-center py-8">No activity yet.</p>
+      ) : (
+        <div className="px-3 py-2 divide-y divide-zinc-50 dark:divide-zinc-800/60">
+          {items.map((item) => (
+            <ActivityItem
+              key={item.id}
+              icon={item.icon}
+              iconBg={item.iconBg}
+              iconColor={item.iconColor}
+              text={item.text}
+              meta={item.meta}
+              time={item.time}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Main export ──────────────────────────────────────────────────────────── */
 
 interface Props {
   leads: Lead[];
@@ -192,89 +299,55 @@ interface Props {
 
 export default function DashboardTab({ leads, stats }: Props) {
   return (
-    <div className="space-y-5">
+    <div className="p-4 sm:p-6 space-y-5 animate-fade-in">
 
-      {/* ── 4 hero stat cards ── */}
+      {/* ── 4 stat cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           label="Total Leads"
           value={stats.total}
           sub="All time"
-          accentBg="bg-indigo-500"
-          iconBg="bg-indigo-50"
-          iconColor="text-indigo-500"
-          icon={<Users size={18} />}
+          accent="bg-info-500"
+          iconBg="bg-info-50 dark:bg-info-900/30"
+          iconColor="text-info-600 dark:text-info-400"
+          icon={<Users size={16} />}
         />
         <StatCard
           label="New This Week"
           value={stats.newThisWeek}
           sub="Last 7 days"
-          accentBg="bg-amber-400"
-          iconBg="bg-amber-50"
-          iconColor="text-amber-500"
-          icon={<CalendarPlus size={18} />}
+          accent="bg-amber-400"
+          iconBg="bg-amber-50 dark:bg-amber-900/30"
+          iconColor="text-amber-600 dark:text-amber-400"
+          icon={<CalendarPlus size={16} />}
         />
         <StatCard
           label="Active Pipeline"
           value={stats.activePipeline}
           sub="Contacted + qualified"
-          accentBg="bg-emerald-500"
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
-          icon={<TrendingUp size={18} />}
+          accent="bg-brand-500"
+          iconBg="bg-brand-50 dark:bg-brand-950/40"
+          iconColor="text-brand-600 dark:text-brand-400"
+          icon={<TrendingUp size={16} />}
         />
         <StatCard
           label="Pending Suppliers"
           value={stats.pendingSuppliers}
           sub="Awaiting response"
-          accentBg="bg-orange-400"
-          iconBg="bg-orange-50"
-          iconColor="text-orange-500"
-          icon={<Package size={18} />}
+          accent="bg-coral"
+          iconBg="bg-coral/10"
+          iconColor="text-coral"
+          icon={<Package size={16} />}
         />
       </div>
 
-      {/* ── AI Daily Briefing ── */}
+      {/* ── AI Briefing ── */}
       <BriefingSection leads={leads} />
 
-      {/* ── Recent leads + What We Search ── */}
+      {/* ── Two-column: Recent Leads + Activity Feed ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="font-bold text-sm text-slate-800 mb-4">Recent Leads</p>
-          {leads.length === 0 && (
-            <p className="text-slate-400 text-sm text-center py-5">No leads yet.</p>
-          )}
-          {leads.slice(0, 6).map((l) => (
-            <div key={l.id} className="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0">
-              <div>
-                <p className="font-semibold text-sm text-slate-800">{l.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{sourceIcon(l.source)} {l.area}</p>
-              </div>
-              <StatusBadge status={l.status} />
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <p className="font-bold text-sm text-slate-800 mb-4">What We Search</p>
-          {[
-            ['📍', 'Google Maps',    'Contractor listings with phone, rating, reviews'],
-            ['🏡', 'Nextdoor',       'Homeowners asking for remodel recommendations'],
-            ['🔴', 'Reddit',         'r/southflorida, r/tampa kitchen remodel posts'],
-            ['🏠', 'Houzz',          'Active homeowners planning renovations'],
-            ['📋', 'Permit Records', 'Kitchen permits filed in county records'],
-            ['💼', 'LinkedIn',       'Developers with active residential projects'],
-            ['🔧', 'Angi / BBB',     'Contractors with verified reviews'],
-          ].map(([icon, name, desc]) => (
-            <div key={name as string} className="flex gap-3 py-2 border-b border-slate-50 last:border-0 items-start">
-              <span className="text-base w-5 flex-shrink-0">{icon}</span>
-              <div>
-                <p className="font-semibold text-xs text-slate-700">{name as string}</p>
-                <p className="text-[11px] text-slate-400">{desc as string}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <RecentLeads leads={leads} />
+        <ActivityFeed leads={leads} />
       </div>
 
     </div>
