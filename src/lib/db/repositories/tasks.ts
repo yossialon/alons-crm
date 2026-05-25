@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import type { TaskCreate, TaskUpdate } from '@/lib/schemas/tasks';
 
 export async function listTasks(orgId: string, filters?: { lead_id?: string; project_id?: string }) {

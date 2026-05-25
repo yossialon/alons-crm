@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { sendEmail, buildTrackedHtml } from '@/lib/outreach/email';
 import { sendSms } from '@/lib/outreach/sms';
@@ -105,6 +105,58 @@ export async function POST(req: NextRequest) {
     .eq('org_id', orgId)
     .neq('status', 'closed');
 
+  // Check if any rule uses days_since_contact — if so, batch-fetch
+  // the most recent outreach_log entry per lead in ONE query (eliminates N+1).
+  const needsContactDates = (rules ?? []).some((r) => r.trigger_type === 'days_since_contact');
+
+  // Map: lead_id → last contacted_at (ISO string), populated below if needed
+  const lastContactMap = new Map<string, string>();
+  if (needsContactDates && (allLeads ?? []).length > 0) {
+    const leadIds = (allLeads as Lead[]).map((l) => l.id);
+    // Use a window function via RPC isn't available in the JS client,
+    // so we use DISTINCT ON via a raw query workaround:
+    // Fetch all recent entries ordered by lead_id + contacted_at DESC and de-dup in JS.
+    // This is one query regardless of lead count.
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const { data: contactRows } = await supabase
+      .from('outreach_log')
+      .select('lead_id, contacted_at')
+      .in('lead_id', leadIds)
+      .gte('contacted_at', thirtyDaysAgo)
+      .order('contacted_at', { ascending: false });
+
+    // Keep only the most-recent row per lead_id
+    for (const row of (contactRows ?? []) as { lead_id: string; contacted_at: string }[]) {
+      if (!lastContactMap.has(row.lead_id)) {
+        lastContactMap.set(row.lead_id, row.contacted_at);
+      }
+    }
+  }
+
+  // Pre-compute today's window once outside the nested loop
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+
+  // Batch-fetch all today's scheduled_outreach entries (one query, de-dup in JS)
+  const todayScheduledSet = new Set<string>(); // `${lead_id}:${template_id}`
+  if ((allLeads ?? []).length > 0) {
+    const leadIds = (allLeads as Lead[]).map((l) => l.id);
+    const { data: todayRows } = await supabase
+      .from('scheduled_outreach')
+      .select('lead_id, template_id')
+      .in('lead_id', leadIds)
+      .gte('scheduled_at', todayStart.toISOString())
+      .lt('scheduled_at', todayEnd.toISOString())
+      .in('status', ['pending', 'sent']);
+    for (const r of (todayRows ?? []) as { lead_id: string; template_id: string | null }[]) {
+      todayScheduledSet.add(`${r.lead_id}:${r.template_id ?? 'null'}`);
+    }
+  }
+
+  const insertBatch: object[] = [];
+
   for (const rule of rules ?? []) {
     const tmplBody    = (rule.message_templates as { body?: string; subject?: string } | null)?.body;
     const tmplSubject = (rule.message_templates as { body?: string; subject?: string } | null)?.subject ?? '';
@@ -123,42 +175,25 @@ export async function POST(req: NextRequest) {
       } else if (rule.trigger_type === 'status_is') {
         triggered = lead.status === rule.trigger_value;
       } else if (rule.trigger_type === 'days_since_contact') {
-        const { data: last } = await supabase
-          .from('outreach_log')
-          .select('contacted_at')
-          .eq('lead_id', lead.id)
-          .order('contacted_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (last) {
-          const days = (Date.now() - new Date((last as { contacted_at: string }).contacted_at).getTime()) / 86_400_000;
+        // Use pre-fetched map (no per-lead query)
+        const lastContacted = lastContactMap.get(lead.id);
+        if (lastContacted) {
+          const days = (Date.now() - new Date(lastContacted).getTime()) / 86_400_000;
           triggered = Math.floor(days) === parseInt(rule.trigger_value as string, 10);
         }
       }
       if (!triggered) continue;
 
-      // Avoid duplicate automation sends: check scheduled_outreach for same rule+lead today
-      const todayStart = new Date();
-      todayStart.setUTCHours(0, 0, 0, 0);
-      const todayEnd = new Date(todayStart);
-      todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
-
-      const { data: already } = await supabase
-        .from('scheduled_outreach')
-        .select('id')
-        .eq('lead_id', lead.id)
-        .eq('template_id', rule.template_id ?? null)
-        .gte('scheduled_at', todayStart.toISOString())
-        .lt('scheduled_at', todayEnd.toISOString())
-        .in('status', ['pending', 'sent'])
-        .maybeSingle();
-      if (already) continue;
+      // Avoid duplicate automation sends using pre-fetched set
+      const dedupeKey = `${lead.id}:${rule.template_id ?? 'null'}`;
+      if (todayScheduledSet.has(dedupeKey)) continue;
+      todayScheduledSet.add(dedupeKey); // prevent duplicate within this run
 
       const vars    = leadToVars(lead);
       const body    = interpolate(tmplBody, vars);
       const subject = interpolate(tmplSubject, vars);
 
-      await supabase.from('scheduled_outreach').insert({
+      insertBatch.push({
         org_id:       orgId,
         lead_id:      lead.id,
         template_id:  rule.template_id ?? null,
@@ -169,6 +204,11 @@ export async function POST(req: NextRequest) {
       });
       processed++;
     }
+  }
+
+  // Batch-insert all new scheduled_outreach rows in one round-trip
+  if (insertBatch.length > 0) {
+    await supabase.from('scheduled_outreach').insert(insertBatch);
   }
 
   return NextResponse.json({ ok: true, processed });

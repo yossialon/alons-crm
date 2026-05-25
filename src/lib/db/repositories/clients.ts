@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import type { ClientCreate, ClientUpdate } from '@/lib/schemas/clients';
 
 export async function listClients(orgId: string) {

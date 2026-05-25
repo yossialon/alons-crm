@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import type { SupplierCreate, SupplierUpdate } from '@/lib/schemas/suppliers';
 
 export async function listSuppliers(orgId: string) {

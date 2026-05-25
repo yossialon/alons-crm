@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import type { ScanResultItem } from '@/lib/schemas/scan-results';
 
 export async function listScanResults(orgId: string, limit = 300) {

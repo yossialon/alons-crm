@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 
 export interface AuditInsert {
   org_id:      string;

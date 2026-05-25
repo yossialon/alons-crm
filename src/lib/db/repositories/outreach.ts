@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import type { OutreachCreate } from '@/lib/schemas/outreach';
 
 export async function listOutreachByLead(orgId: string, leadId: string) {

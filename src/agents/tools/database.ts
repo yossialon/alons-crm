@@ -1,30 +1,21 @@
 // ── Agent Database Tool ───────────────────────────────────────────────────────
 // Helpers for logging agent runs and reading system state.
+// Uses the shared serverDb singleton (service role) — never the anon key.
 
-import { createClient } from '@supabase/supabase-js';
-import type { AgentName, AgentStatus, AgentTrigger, AgentRun, AgentTask, AgentTaskStatus, HealthCheck } from '@/agents/types';
+import { serverDb as db } from '@/lib/supabase-server';
+import type {
+  AgentName, AgentStatus, AgentTrigger,
+  AgentRun, AgentTask, AgentTaskStatus, HealthCheck,
+} from '@/agents/types';
 
 const ORG_ID = process.env.ORG_ID ?? '00000000-0000-0000-0000-000000000001';
-
-function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is required for agent database operations. ' +
-      'This module must only run server-side. ' +
-      'Never fall back to the public anon key.',
-    );
-  }
-  return createClient(url, key);
-}
 
 /** Insert a new agent_run row and return its id */
 export async function logAgentRun(
   agentName: AgentName,
   trigger: AgentTrigger = 'cron',
 ): Promise<string> {
-  const { data, error } = await db()
+  const { data, error } = await db
     .from('agent_runs')
     .insert({
       org_id:     ORG_ID,
@@ -52,12 +43,11 @@ export async function updateAgentRun(
     metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
-  const now = new Date();
-  await db()
+  await db
     .from('agent_runs')
     .update({
       ...update,
-      finished_at: now.toISOString(),
+      finished_at: new Date().toISOString(),
       errors:      update.errors ?? [],
       metadata:    update.metadata ?? {},
     })
@@ -66,7 +56,7 @@ export async function updateAgentRun(
 
 /** Get the last completed run for a given agent */
 export async function getLastRun(agentName: AgentName): Promise<AgentRun | null> {
-  const { data } = await db()
+  const { data } = await db
     .from('agent_runs')
     .select('*')
     .eq('agent_name', agentName)
@@ -80,7 +70,7 @@ export async function getLastRun(agentName: AgentName): Promise<AgentRun | null>
 
 /** Get recent runs (for the UI) */
 export async function getRecentRuns(limit = 20): Promise<AgentRun[]> {
-  const { data } = await db()
+  const { data } = await db
     .from('agent_runs')
     .select('*')
     .eq('org_id', ORG_ID)
@@ -91,7 +81,7 @@ export async function getRecentRuns(limit = 20): Promise<AgentRun[]> {
 
 /** Save a health check snapshot */
 export async function saveHealthCheck(check: HealthCheck): Promise<void> {
-  await db().from('system_health').insert({
+  await db.from('system_health').insert({
     org_id:     ORG_ID,
     check_name: check.name,
     status:     check.status,
@@ -102,7 +92,7 @@ export async function saveHealthCheck(check: HealthCheck): Promise<void> {
 
 /** Get the latest health checks (one per check_name) */
 export async function getLatestHealthChecks(): Promise<HealthCheck[]> {
-  const { data } = await db()
+  const { data } = await db
     .from('system_health')
     .select('check_name, status, value_ms, details, checked_at')
     .eq('org_id', ORG_ID)
@@ -130,12 +120,12 @@ export async function getLatestHealthChecks(): Promise<HealthCheck[]> {
 
 /** Save a tech recommendation */
 export async function saveTechRecommendation(rec: {
-  category: string;
-  priority: string;
-  title: string;
+  category:    string;
+  priority:    string;
+  title:       string;
   description: string;
 }): Promise<void> {
-  await db().from('tech_recommendations').insert({ org_id: ORG_ID, ...rec });
+  await db.from('tech_recommendations').insert({ org_id: ORG_ID, ...rec });
 }
 
 /** Save a campaign recommendation (confidence is optional — NULL when no learning data) */
@@ -147,7 +137,7 @@ export async function saveCampaignRecommendation(rec: {
   impact:      string;
   confidence?: number;
 }): Promise<void> {
-  await db().from('campaign_recommendations').insert({ org_id: ORG_ID, ...rec });
+  await db.from('campaign_recommendations').insert({ org_id: ORG_ID, ...rec });
 }
 
 /** Persist a learned pattern from the weekly learning analysis pass */
@@ -158,19 +148,20 @@ export async function saveCampaignLearning(learning: {
   based_on_weeks:   number;
   reasoning?:       string;
 }): Promise<void> {
-  await db().from('campaign_learnings').insert({ org_id: ORG_ID, ...learning });
+  await db.from('campaign_learnings').insert({ org_id: ORG_ID, ...learning });
 }
 
-/** Check if a lead already exists by phone or email */
+/** Check if a lead already exists by phone or email (org-scoped dedup) */
 export async function leadExists(phone?: string, email?: string): Promise<boolean> {
   if (!phone && !email) return false;
   const conditions: string[] = [];
   if (phone) conditions.push(`phone.eq.${phone}`);
   if (email) conditions.push(`email.eq.${email}`);
 
-  const { data } = await db()
+  const { data } = await db
     .from('leads')
     .select('id')
+    .eq('org_id', ORG_ID)
     .or(conditions.join(','))
     .limit(1);
   return (data?.length ?? 0) > 0;
@@ -178,7 +169,7 @@ export async function leadExists(phone?: string, email?: string): Promise<boolea
 
 /** Import a lead row */
 export async function importLead(lead: Record<string, unknown>): Promise<string | null> {
-  const { data, error } = await db()
+  const { data, error } = await db
     .from('leads')
     .insert({ org_id: ORG_ID, ...lead })
     .select('id')
@@ -190,29 +181,53 @@ export async function importLead(lead: Record<string, unknown>): Promise<string 
   return (data as { id: string }).id;
 }
 
-/** Fetch dashboard stats for the briefing */
+/**
+ * Fetch dashboard stats for the boss agent briefing.
+ * Uses server-side COUNT queries instead of fetching all rows and filtering
+ * in JS — avoids N rows transfer for large orgs.
+ */
 export async function getDashboardStats(): Promise<{
-  totalLeads: number;
-  newLeads: number;
+  totalLeads:     number;
+  newLeads:       number;
   activePipeline: number;
-  pendingTasks: number;
+  pendingTasks:   number;
   recentMessages: number;
 }> {
-  const client = db();
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const [leadsRes, tasksRes, msgsRes] = await Promise.all([
-    client.from('leads').select('id, status, created_at').eq('org_id', ORG_ID),
-    client.from('tasks').select('id, completed').eq('org_id', ORG_ID).eq('completed', false),
-    client.from('social_messages').select('id').gte('created_at', weekAgo),
+
+  const [totalRes, newRes, pipelineRes, tasksRes, msgsRes] = await Promise.all([
+    // total leads
+    db.from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('org_id', ORG_ID),
+    // new leads this week
+    db.from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('org_id', ORG_ID)
+      .gte('created_at', weekAgo),
+    // active pipeline (contacted + qualified)
+    db.from('leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('org_id', ORG_ID)
+      .in('status', ['contacted', 'qualified']),
+    // pending tasks
+    db.from('tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('org_id', ORG_ID)
+      .eq('completed', false),
+    // recent messages (org-scoped — was missing org_id filter before)
+    db.from('social_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('org_id', ORG_ID)
+      .gte('created_at', weekAgo),
   ]);
 
-  const leads = (leadsRes.data ?? []) as { status: string; created_at: string }[];
   return {
-    totalLeads:     leads.length,
-    newLeads:       leads.filter((l) => new Date(l.created_at) >= new Date(weekAgo)).length,
-    activePipeline: leads.filter((l) => ['contacted', 'qualified'].includes(l.status)).length,
-    pendingTasks:   tasksRes.data?.length ?? 0,
-    recentMessages: msgsRes.data?.length ?? 0,
+    totalLeads:     totalRes.count    ?? 0,
+    newLeads:       newRes.count      ?? 0,
+    activePipeline: pipelineRes.count ?? 0,
+    pendingTasks:   tasksRes.count    ?? 0,
+    recentMessages: msgsRes.count     ?? 0,
   };
 }
 
@@ -228,7 +243,7 @@ export async function enqueueAgentTask(task: {
   task_type:  string;
   payload?:   Record<string, unknown>;
 }): Promise<string> {
-  const { data, error } = await db()
+  const { data, error } = await db
     .from('agent_tasks')
     .insert({
       org_id:     ORG_ID,
@@ -252,10 +267,11 @@ export async function dequeueAgentTasks(
   toAgent: AgentName,
   limit = 10,
 ): Promise<AgentTask[]> {
-  const { data } = await db()
+  const { data } = await db
     .from('agent_tasks')
     .select('*')
     .eq('to_agent', toAgent)
+    .eq('org_id', ORG_ID)
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
     .limit(limit);
@@ -269,7 +285,7 @@ export async function resolveAgentTask(
   taskId:  string,
   outcome: { status: 'done' | 'failed'; error?: string },
 ): Promise<void> {
-  await db()
+  await db
     .from('agent_tasks')
     .update({
       status:      outcome.status,
@@ -284,10 +300,11 @@ export async function resolveAgentTask(
  * return the updated row. Returns null if the task was already claimed.
  */
 export async function claimAgentTask(taskId: string): Promise<AgentTask | null> {
-  const { data } = await db()
+  const { data } = await db
     .from('agent_tasks')
     .update({ status: 'processing' as AgentTaskStatus, started_at: new Date().toISOString() })
     .eq('id', taskId)
+    .eq('org_id', ORG_ID)
     .eq('status', 'pending')   // only claim if still pending (optimistic lock)
     .select('*')
     .single();

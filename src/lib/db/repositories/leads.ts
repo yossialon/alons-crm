@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import type { LeadCreate, LeadUpdate } from '@/lib/schemas/leads';
 
 export async function listLeads(orgId: string) {

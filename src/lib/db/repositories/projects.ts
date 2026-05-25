@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import type { ProjectCreate, ProjectUpdate } from '@/lib/schemas/projects';
 
 type WithClientName<T> = T & { client_name: string | null };
