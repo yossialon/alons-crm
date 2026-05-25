@@ -4,6 +4,7 @@ import { getSubscription, createCheckout, createPortal } from '@/lib/api';
 import {
   Copy, Check, ChevronDown, ChevronUp,
   Bot, Zap, Activity, Play, RefreshCw, CheckCircle, AlertTriangle, XCircle, Clock,
+  CreditCard, ShieldAlert,
 } from 'lucide-react';
 
 type Usage = {
@@ -44,6 +45,97 @@ const PLAN_FEATURES: Record<string, string[]> = {
   pro:  ['2,000 leads', '20 campaigns', '10 automations', '3 social connections', '5 team members'],
   enterprise: ['Unlimited leads', 'Unlimited campaigns', 'Unlimited automations', '10+ social connections', 'Unlimited team members'],
 };
+
+// ── Billing Status Banner ─────────────────────────────────────────────────
+
+type BillingStatus = string | undefined;
+
+function BillingStatusBanner({ status, trialEndsAt, onManageBilling, busy }: {
+  status:          BillingStatus;
+  trialEndsAt:     string | null | undefined;
+  onManageBilling: () => void;
+  busy:            boolean;
+}) {
+  if (!status) return null;
+
+  // Trial: only show when ≤ 3 days left
+  if (status === 'trialing') {
+    const ms   = trialEndsAt ? new Date(trialEndsAt).getTime() - Date.now() : -1;
+    const days = Math.ceil(ms / 86400000);
+    if (days > 3) return null;
+    return (
+      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-4">
+        <Clock size={16} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="flex-1 text-sm">
+          <p className="font-semibold text-amber-800 dark:text-amber-300">
+            {days <= 0 ? 'Your trial has expired' : `${days} day${days === 1 ? '' : 's'} left in your trial`}
+          </p>
+          <p className="text-amber-700 dark:text-amber-400 mt-0.5 text-xs">
+            Upgrade now to keep access to all features.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Active — no banner needed
+  if (status === 'active') return null;
+
+  const config: Record<string, { icon: React.ReactNode; title: string; body: string; color: string; borderColor: string; cta: string }> = {
+    past_due: {
+      icon:        <CreditCard size={16} className="mt-0.5 shrink-0 text-red-600" />,
+      title:       'Payment past due',
+      body:        'Your last payment failed. Update your billing details to avoid service interruption.',
+      color:       'bg-red-50 dark:bg-red-900/20',
+      borderColor: 'border-red-200 dark:border-red-700',
+      cta:         'Fix Payment',
+    },
+    incomplete: {
+      icon:        <ShieldAlert size={16} className="mt-0.5 shrink-0 text-orange-600" />,
+      title:       'Payment incomplete',
+      body:        'Your subscription requires a payment action. Click below to complete it.',
+      color:       'bg-orange-50 dark:bg-orange-900/20',
+      borderColor: 'border-orange-200 dark:border-orange-700',
+      cta:         'Complete Payment',
+    },
+    unpaid: {
+      icon:        <ShieldAlert size={16} className="mt-0.5 shrink-0 text-red-600" />,
+      title:       'Subscription unpaid',
+      body:        'Your subscription is unpaid. Update your payment method to restore access.',
+      color:       'bg-red-50 dark:bg-red-900/20',
+      borderColor: 'border-red-200 dark:border-red-700',
+      cta:         'Update Payment',
+    },
+    cancelled: {
+      icon:        <XCircle size={16} className="mt-0.5 shrink-0 text-slate-500" />,
+      title:       'Subscription cancelled',
+      body:        'Your subscription has ended. Resubscribe below to restore full access.',
+      color:       'bg-slate-50 dark:bg-slate-800/60',
+      borderColor: 'border-slate-200 dark:border-slate-700',
+      cta:         'Resubscribe',
+    },
+  };
+
+  const c = config[status];
+  if (!c) return null;
+
+  return (
+    <div className={`flex items-start gap-3 rounded-xl border ${c.borderColor} ${c.color} p-4`}>
+      {c.icon}
+      <div className="flex-1 text-sm">
+        <p className="font-semibold text-slate-800 dark:text-slate-100">{c.title}</p>
+        <p className="text-slate-600 dark:text-slate-400 mt-0.5 text-xs">{c.body}</p>
+      </div>
+      <button
+        onClick={onManageBilling}
+        disabled={busy}
+        className="shrink-0 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+      >
+        {busy ? 'Loading…' : c.cta}
+      </button>
+    </div>
+  );
+}
 
 // ── Meta & Social Section ──────────────────────────────────────────────────
 
@@ -723,6 +815,14 @@ export default function SettingsTab() {
             </div>
           ) : (
             <>
+              {/* Billing status banner — trial expiring, past due, incomplete, etc. */}
+              <BillingStatusBanner
+                status={data?.status}
+                trialEndsAt={data?.trial_ends_at}
+                onManageBilling={portal}
+                busy={busy === 'portal'}
+              />
+
               {/* Current Plan */}
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -735,6 +835,9 @@ export default function SettingsTab() {
                           · {Math.max(0, Math.ceil(((data?.trial_ends_at ? new Date(data.trial_ends_at).getTime() : 0) - Date.now()) / 86400000))}d trial left
                         </span>
                       )}
+                      {data?.status === 'past_due' && (
+                        <span className="ml-2 text-sm font-semibold text-red-600 dark:text-red-400">· Payment due</span>
+                      )}
                     </h2>
                     {data?.plan?.price_monthly != null && (
                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -742,7 +845,7 @@ export default function SettingsTab() {
                       </p>
                     )}
                   </div>
-                  {(data?.plan?.id === 'pro' || data?.plan?.id === 'enterprise') ? (
+                  {(data?.plan?.id === 'pro' || data?.plan?.id === 'enterprise' || data?.status === 'past_due') ? (
                     <button onClick={portal} disabled={busy === 'portal'} className="btn-ghost text-sm">
                       {busy === 'portal' ? 'Loading…' : 'Manage Billing'}
                     </button>

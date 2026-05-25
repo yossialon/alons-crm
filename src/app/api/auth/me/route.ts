@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionPayload } from '@/lib/session';
-import { supabase } from '@/lib/supabase';
+import { serverDb } from '@/lib/supabase-server';
 import { getPlan } from '@/lib/plans';
+import { getPlanFromPriceId } from '@/lib/stripe';
+import { log } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,30 +18,30 @@ export async function GET(req: NextRequest) {
     if (!orgId) return NextResponse.json({ error: 'No org' }, { status: 400 });
 
     const [{ data: org }, { data: user }] = await Promise.all([
-      supabase
+      serverDb
         .from('organizations')
-        .select('id, name, subscription_status, trial_ends_at, seats_limit')
+        .select('id, name, subscription_status, trial_ends_at, seats_limit, stripe_price_id')
         .eq('id', orgId)
         .maybeSingle(),
-      supabase
+      serverDb
         .from('users')
         .select('id, name, email, role')
         .eq('id', payload.user_id!)
         .maybeSingle(),
     ]);
 
-    const status = org?.subscription_status ?? 'trialing';
-    const planId = status === 'active' ? 'pro' : status === 'enterprise' ? 'enterprise' : 'free';
+    // Derive plan tier from stored Stripe price ID — not from status heuristics
+    const planId = getPlanFromPriceId((org as { stripe_price_id?: string | null } | null)?.stripe_price_id);
     const plan   = getPlan(planId);
 
     return NextResponse.json({
       user,
       org,
-      plan: { id: planId, price_monthly: plan.price_monthly, limits: plan.limits },
+      plan: { id: planId, name: plan.name, price_monthly: plan.price_monthly, limits: plan.limits },
       role: payload.role,
     });
   } catch (err) {
-    console.error('[GET /api/auth/me]', err);
+    log.error('[GET /api/auth/me]', err);
     return NextResponse.json({ error: 'Failed to load user' }, { status: 500 });
   }
 }

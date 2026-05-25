@@ -1,24 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { serverDb } from '@/lib/supabase-server';
 import { getSessionPayload } from '@/lib/session';
 import { getPlan } from '@/lib/plans';
+import { getPlanFromPriceId } from '@/lib/stripe';
+import { log } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   const payload = await getSessionPayload(req);
-  if (!payload?.org_id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!payload?.org_id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const orgId = payload.org_id;
 
-  const { data: org } = await supabase
+  const { data: org, error: orgError } = await serverDb
     .from('organizations')
-    .select('subscription_status, trial_ends_at, seats_limit')
+    .select('subscription_status, trial_ends_at, seats_limit, stripe_price_id')
     .eq('id', orgId)
     .maybeSingle();
-  if (!org) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const status = org.subscription_status as string;
-  const planId = status === 'active' ? 'pro' : status === 'enterprise_active' ? 'enterprise' : 'free';
-  const plan = getPlan(planId);
+  if (orgError) {
+    log.error('[billing/subscription] DB error', orgError, { orgId });
+    return NextResponse.json({ error: 'Failed to load subscription' }, { status: 500 });
+  }
+  if (!org) {
+    return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+  }
+
+  // Derive plan from the stored Stripe price ID — not from status string alone
+  const planId = getPlanFromPriceId(org.stripe_price_id as string | null);
+  const plan   = getPlan(planId);
 
   const [
     { count: leads },
@@ -27,17 +38,24 @@ export async function GET(req: NextRequest) {
     { count: connections },
     { count: members },
   ] = await Promise.all([
-    supabase.from('leads').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
-    supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
-    supabase.from('automation_rules').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
-    supabase.from('social_connections').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
+    serverDb.from('leads').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
+    serverDb.from('campaigns').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
+    serverDb.from('automation_rules').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
+    serverDb.from('social_connections').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
+    serverDb.from('users').select('*', { count: 'exact', head: true }).eq('org_id', orgId),
   ]);
 
   return NextResponse.json({
-    plan: { id: planId, price_monthly: plan.price_monthly, limits: plan.limits },
-    status,
-    trial_ends_at: org.trial_ends_at,
+    plan: {
+      id:            planId,
+      name:          plan.name,
+      price_monthly: plan.price_monthly,
+      price_yearly:  plan.price_yearly,
+      limits:        plan.limits,
+      features:      plan.features,
+    },
+    status:       org.subscription_status as string,
+    trial_ends_at: org.trial_ends_at as string | null,
     usage: {
       leads:              leads ?? 0,
       campaigns:          campaigns ?? 0,
