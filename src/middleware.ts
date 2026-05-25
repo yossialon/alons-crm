@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionPayload } from '@/lib/session';
+import { randomUUID } from 'crypto';
 
 const PUBLIC_PATHS = [
   '/login',
@@ -23,11 +24,21 @@ function isPublic(pathname: string): boolean {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (isPublic(pathname)) return NextResponse.next();
+  // ── Request ID ─────────────────────────────────────────────────────────────
+  // Propagated as x-request-id so it appears in every server log line and
+  // in error responses — correlates browser, CDN, and function logs.
+  const requestId = req.headers.get('x-request-id') ?? randomUUID();
+
+  if (isPublic(pathname)) {
+    const res = NextResponse.next();
+    res.headers.set('x-request-id', requestId);
+    return res;
+  }
 
   const orgId = process.env.ORG_ID ?? '00000000-0000-0000-0000-000000000001';
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-org-id', orgId);
+  requestHeaders.set('x-request-id', requestId);
 
   // Dev bypass: ONLY honoured in local development (NODE_ENV=development).
   // Setting DISABLE_AUTH=true on Vercel / any production deployment has NO effect.
@@ -43,7 +54,10 @@ export async function middleware(req: NextRequest) {
   if (!session) {
     // API routes return 401; page routes redirect to login
     if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized', requestId },
+        { status: 401, headers: { 'x-request-id': requestId } },
+      );
     }
     const loginUrl = new URL('/login', req.url);
     loginUrl.searchParams.set('next', pathname);
@@ -55,7 +69,9 @@ export async function middleware(req: NextRequest) {
   requestHeaders.set('x-user-id', session.user_id ?? session.username);
   if (session.org_id) requestHeaders.set('x-org-id', session.org_id);
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  res.headers.set('x-request-id', requestId);
+  return res;
 }
 
 export const config = {

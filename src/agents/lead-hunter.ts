@@ -3,9 +3,10 @@
 // Scores each lead ≥ LEAD_MIN_SCORE before importing.
 
 import { logAgentRun, updateAgentRun, leadExists, importLead } from '@/agents/tools/database';
-import { callClaudeHaiku, callClaudeWithWebSearch } from '@/agents/tools/claude';
+import { callClaudeHaiku, callClaudeWithWebSearch, extractJsonArray } from '@/agents/tools/claude';
 import { alertOwner } from '@/agents/tools/whatsapp';
 import { searchPermitsByCounty } from '@/lib/permits';
+import { log } from '@/lib/logger';
 import type { LeadSource } from '@/agents/types';
 
 const MIN_SCORE = Number(process.env.LEAD_MIN_SCORE ?? '70');
@@ -46,7 +47,7 @@ async function searchGooglePlaces(): Promise<LeadSource[]> {
         });
       }
     } catch (err) {
-      console.error('[LeadHunter] Google Places error:', err);
+      log.error('[lead-hunter] Google Places error', err);
     }
   }
 
@@ -77,7 +78,7 @@ async function searchPermits(): Promise<LeadSource[]> {
           });
         }
       } catch (err) {
-        console.error(`[LeadHunter] Permit search error (${county}):`, err);
+        log.error(`[lead-hunter] Permit search error (${county})`, err);
       }
     }),
   );
@@ -94,11 +95,10 @@ async function searchBadReviews(): Promise<LeadSource[]> {
     Format as JSON array: [{"name": "...", "city": "...", "competitor": "...", "complaint": "..."}]
     Return ONLY the JSON array, no other text.`;
 
-    const raw = await callClaudeWithWebSearch(prompt);
-    const match = raw.match(/\[[\s\S]*\]/);
-    if (!match) return [];
+    const raw     = await callClaudeWithWebSearch(prompt);
+    const reviews = extractJsonArray<{ name?: string; city?: string; competitor?: string; complaint?: string }>(raw);
+    if (!reviews) { log.warn('[lead-hunter] Bad review search: no JSON array in response'); return []; }
 
-    const reviews = JSON.parse(match[0]) as { name?: string; city?: string; competitor?: string; complaint?: string }[];
     return reviews.slice(0, 5).map((r) => ({
       name:   r.name ?? 'Unhappy Customer',
       city:   r.city,
@@ -107,7 +107,7 @@ async function searchBadReviews(): Promise<LeadSource[]> {
       notes:  `Unhappy with competitor: ${r.competitor}. Complaint: ${r.complaint}`,
     }));
   } catch (err) {
-    console.error('[LeadHunter] Bad review search error:', err);
+    log.error('[lead-hunter] Bad review search error', err);
     return [];
   }
 }
@@ -124,11 +124,10 @@ async function searchWebLeads(): Promise<LeadSource[]> {
     Format as JSON array: [{"name": "...", "city": "...", "source_platform": "...", "context": "..."}]
     Return ONLY the JSON array.`;
 
-    const raw = await callClaudeWithWebSearch(prompt);
-    const match = raw.match(/\[[\s\S]*\]/);
-    if (!match) return [];
+    const raw     = await callClaudeWithWebSearch(prompt);
+    const results = extractJsonArray<{ name?: string; city?: string; source_platform?: string; context?: string }>(raw);
+    if (!results) { log.warn('[lead-hunter] Web lead search: no JSON array in response'); return []; }
 
-    const results = JSON.parse(match[0]) as { name?: string; city?: string; source_platform?: string; context?: string }[];
     return results.slice(0, 5).map((r) => ({
       name:   r.name ?? 'Homeowner',
       city:   r.city,
@@ -137,7 +136,7 @@ async function searchWebLeads(): Promise<LeadSource[]> {
       notes:  r.context,
     }));
   } catch (err) {
-    console.error('[LeadHunter] Web lead search error:', err);
+    log.error('[lead-hunter] Web lead search error', err);
     return [];
   }
 }
@@ -229,15 +228,11 @@ Return ONLY a valid JSON array — one entry per lead, in the same order as the 
   const t0 = Date.now();
 
   try {
-    const raw = await callClaudeHaiku([{ role: 'user', content: prompt }]);
+    const raw        = await callClaudeHaiku([{ role: 'user', content: prompt }]);
     const durationMs = Date.now() - t0;
 
-    // Tolerate markdown code fences in the response
-    const cleaned = raw.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
-    const match   = cleaned.match(/\[[\s\S]*\]/);
-    if (!match) throw new Error(`No JSON array in Claude response. Raw: ${raw.slice(0, 200)}`);
-
-    const aiScores: AiScore[] = JSON.parse(match[0]);
+    const aiScores   = extractJsonArray<AiScore>(raw);
+    if (!aiScores) throw new Error(`No JSON array in scoring response. Raw: ${raw.slice(0, 200)}`);
 
     // Index-keyed lookup for O(1) access
     const scoreMap = new Map<number, AiScore>();
@@ -276,7 +271,7 @@ Return ONLY a valid JSON array — one entry per lead, in the same order as the 
     };
   } catch (err) {
     // Graceful degradation — heuristic scores remain in place
-    console.error('[LeadHunter] AI scoring failed, falling back to heuristic scores:', err);
+    log.error('[lead-hunter] AI scoring failed, falling back to heuristic scores', err);
     return {
       leads,
       metadata: {

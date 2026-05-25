@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Lead, Supplier, ToastState } from '@/types';
 import {
   getLeads, createLead, updateLead, deleteLead,
@@ -8,27 +9,44 @@ import {
 } from '@/lib/api';
 import { useTab } from '@/contexts/TabContext';
 import Toast from '@/components/ui/Toast';
-import LeadModal from '@/components/LeadModal';
-import SupplierModal from '@/components/SupplierModal';
-import MessageModal from '@/components/MessageModal';
-import DashboardTab from '@/components/tabs/DashboardTab';
-import LeadsTab from '@/components/tabs/LeadsTab';
-import FindLeadsTab from '@/components/tabs/FindLeadsTab';
-import LeadAuditTab from '@/components/tabs/LeadAuditTab';
-import SuppliersTab from '@/components/tabs/SuppliersTab';
-import KanbanTab from '@/components/tabs/KanbanTab';
-import TasksTab from '@/components/tabs/TasksTab';
-import ProjectsTab from '@/components/tabs/ProjectsTab';
-import AnalyticsTab from '@/components/tabs/AnalyticsTab';
-import CustomersTab from '@/components/tabs/CustomersTab';
-import SocialTab from '@/components/tabs/SocialTab';
-import CreativeStudioTab from '@/components/tabs/CreativeStudioTab';
-import OutreachTab from '@/components/tabs/OutreachTab';
-import MarketingTab from '@/components/tabs/MarketingTab';
-import SettingsTab from '@/components/tabs/SettingsTab';
-import JobCompletionModal from '@/components/JobCompletionModal';
-import AgentChat from '@/components/AgentChat';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Settings, UserCheck } from 'lucide-react';
+
+// ── Skeleton fallback used while each lazy tab chunk loads ────────────────────
+const TabSkeleton = () => (
+  <div className="animate-pulse space-y-4 p-6">
+    {[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />)}
+  </div>
+);
+
+// ── Lazy-loaded tab components ────────────────────────────────────────────────
+// Each tab is its own JS chunk — only the active tab's code is downloaded.
+// Tabs that are used on first load (dashboard, leads, kanban) get slightly
+// higher priority by being listed first; others load on demand.
+const opts = { loading: () => <TabSkeleton /> };
+
+const DashboardTab      = dynamic(() => import('@/components/tabs/DashboardTab'),      opts);
+const LeadsTab          = dynamic(() => import('@/components/tabs/LeadsTab'),           opts);
+const KanbanTab         = dynamic(() => import('@/components/tabs/KanbanTab'),          opts);
+const TasksTab          = dynamic(() => import('@/components/tabs/TasksTab'),           opts);
+const SocialTab         = dynamic(() => import('@/components/tabs/SocialTab'),          opts);
+const FindLeadsTab      = dynamic(() => import('@/components/tabs/FindLeadsTab'),       opts);
+const LeadAuditTab      = dynamic(() => import('@/components/tabs/LeadAuditTab'),       opts);
+const SuppliersTab      = dynamic(() => import('@/components/tabs/SuppliersTab'),       opts);
+const ProjectsTab       = dynamic(() => import('@/components/tabs/ProjectsTab'),        opts);
+const AnalyticsTab      = dynamic(() => import('@/components/tabs/AnalyticsTab'),       opts);
+const CustomersTab      = dynamic(() => import('@/components/tabs/CustomersTab'),       opts);
+const OutreachTab       = dynamic(() => import('@/components/tabs/OutreachTab'),        opts);
+const MarketingTab      = dynamic(() => import('@/components/tabs/MarketingTab'),       opts);
+const CreativeStudioTab = dynamic(() => import('@/components/tabs/CreativeStudioTab'),  opts);
+const SettingsTab       = dynamic(() => import('@/components/tabs/SettingsTab'),        opts);
+
+// Modals are also lazy — they're only ever opened by user action
+const LeadModal         = dynamic(() => import('@/components/LeadModal'));
+const SupplierModal     = dynamic(() => import('@/components/SupplierModal'));
+const MessageModal      = dynamic(() => import('@/components/MessageModal'));
+const JobCompletionModal = dynamic(() => import('@/components/JobCompletionModal'));
+const AgentChat          = dynamic(() => import('@/components/AgentChat'));
 
 export default function DashboardPage() {
   // ── Tab context (replaces local tab state) ─────────────────────────────────
@@ -169,34 +187,44 @@ export default function DashboardPage() {
       <Toast toast={toast} />
 
       {/* Redesigned tabs own their padding ──────────────────────────────────── */}
-      {tab === 'dashboard' && <DashboardTab leads={leads} stats={stats} />}
-      {tab === 'leads'     && (
-        <LeadsTab
-          leads={leads} onEdit={setEditLead} onDelete={handleDeleteLead}
-          onStatusChange={handleStatusChange} onMessage={setMsgLead}
-          onCompleteJob={(lead) => { setJobCompletionLead(lead); setShowJobCompletion(true); }}
-        />
+      {tab === 'dashboard' && (
+        <ErrorBoundary>
+          <DashboardTab leads={leads} stats={stats} />
+        </ErrorBoundary>
       )}
-      {tab === 'kanban'    && <KanbanTab leads={leads} onStatusChange={handleStatusChange} onEdit={setEditLead} />}
-      {tab === 'tasks'     && <TasksTab />}
-      {tab === 'social'    && <SocialTab />}
+      {tab === 'leads' && (
+        <ErrorBoundary>
+          <LeadsTab
+            leads={leads} onEdit={setEditLead} onDelete={handleDeleteLead}
+            onStatusChange={handleStatusChange} onMessage={setMsgLead}
+            onCompleteJob={(lead) => { setJobCompletionLead(lead); setShowJobCompletion(true); }}
+          />
+        </ErrorBoundary>
+      )}
+      {tab === 'kanban' && (
+        <ErrorBoundary>
+          <KanbanTab leads={leads} onStatusChange={handleStatusChange} onEdit={setEditLead} />
+        </ErrorBoundary>
+      )}
+      {tab === 'tasks'  && <ErrorBoundary><TasksTab /></ErrorBoundary>}
+      {tab === 'social' && <ErrorBoundary><SocialTab /></ErrorBoundary>}
 
       {/* Unredesigned tabs — wrapped with standard padding ──────────────────── */}
       {(tab === 'find' || tab === 'audit' || tab === 'suppliers' || tab === 'projects' ||
         tab === 'analytics' || tab === 'customers' || tab === 'outreach' || tab === 'marketing' ||
         tab === 'creative' || tab === 'employees' || tab === 'settings') && (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-16">
-          {tab === 'find'      && <FindLeadsTab existingLeads={leads} onImport={handleImportFindLead} onMessage={(lead) => setMsgLead(lead as Lead)} />}
-          {tab === 'audit'     && <LeadAuditTab />}
-          {tab === 'suppliers' && <SuppliersTab suppliers={suppliers} onEdit={setEditSupplier} onDelete={handleDeleteSupplier} />}
-          {tab === 'projects'  && <ProjectsTab />}
-          {tab === 'analytics' && <AnalyticsTab leads={leads} />}
-          {tab === 'customers' && <CustomersTab />}
-          {tab === 'outreach'  && <OutreachTab leads={leads.map((l) => ({ id: l.id, name: l.name }))} />}
-          {tab === 'marketing' && <MarketingTab />}
-          {tab === 'creative'  && <CreativeStudioTab />}
+          {tab === 'find'      && <ErrorBoundary><FindLeadsTab existingLeads={leads} onImport={handleImportFindLead} onMessage={(lead) => setMsgLead(lead as Lead)} /></ErrorBoundary>}
+          {tab === 'audit'     && <ErrorBoundary><LeadAuditTab /></ErrorBoundary>}
+          {tab === 'suppliers' && <ErrorBoundary><SuppliersTab suppliers={suppliers} onEdit={setEditSupplier} onDelete={handleDeleteSupplier} /></ErrorBoundary>}
+          {tab === 'projects'  && <ErrorBoundary><ProjectsTab /></ErrorBoundary>}
+          {tab === 'analytics' && <ErrorBoundary><AnalyticsTab leads={leads} /></ErrorBoundary>}
+          {tab === 'customers' && <ErrorBoundary><CustomersTab /></ErrorBoundary>}
+          {tab === 'outreach'  && <ErrorBoundary><OutreachTab leads={leads.map((l) => ({ id: l.id, name: l.name }))} /></ErrorBoundary>}
+          {tab === 'marketing' && <ErrorBoundary><MarketingTab /></ErrorBoundary>}
+          {tab === 'creative'  && <ErrorBoundary><CreativeStudioTab /></ErrorBoundary>}
           {tab === 'employees' && <PlaceholderPage icon={<UserCheck size={40} />} title="Employees" desc="Manage your team, assign leads, and track performance. Coming soon." />}
-          {tab === 'settings'  && <SettingsTab />}
+          {tab === 'settings'  && <ErrorBoundary><SettingsTab /></ErrorBoundary>}
         </div>
       )}
 
@@ -227,7 +255,9 @@ export default function DashboardPage() {
       )}
 
       {/* Boss Agent floating chat */}
-      <AgentChat />
+      <ErrorBoundary variant="inline">
+        <AgentChat />
+      </ErrorBoundary>
     </>
   );
 }
