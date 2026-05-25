@@ -5,11 +5,12 @@ import { sendEmail, buildTrackedHtml } from '@/lib/outreach/email';
 import { sendSms } from '@/lib/outreach/sms';
 import { interpolate, leadToVars } from '@/lib/outreach/template';
 
-// Manual-only endpoint — no cron schedule. getOrgId() enforces session auth.
-// If CRON_SECRET is set, external callers must supply it as a Bearer token.
+// Cron / internal endpoint.
+// CRON_SECRET MUST be set — the handler fails closed if the var is absent.
+// Vercel Cron calls this with: Authorization: Bearer <CRON_SECRET>
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
+  if (!secret) return false; // fail closed — never open-access in production
   return req.headers.get('authorization') === `Bearer ${secret}`;
 }
 
@@ -172,6 +173,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, processed });
 }
-
-// Allow GET for manual testing in browser
-export const GET = POST;

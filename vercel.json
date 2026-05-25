@@ -5,6 +5,35 @@
     },
     "src/app/api/claude/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/agents/lead-hunter/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/agents/ad-machine/weekly-review/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/agents/ad-machine/job-complete/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/agents/ad-machine/test-post/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/agents/boss/chat/route.ts": {
+      "maxDuration": 120
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/agents/lead-hunter",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/agents/ad-machine/weekly-review",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/outreach",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

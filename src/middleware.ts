@@ -29,8 +29,9 @@ export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-org-id', orgId);
 
-  // Dev bypass: set DISABLE_AUTH=true in env to skip session checks
-  if (process.env.DISABLE_AUTH === 'true') {
+  // Dev bypass: ONLY honoured in local development (NODE_ENV=development).
+  // Setting DISABLE_AUTH=true on Vercel / any production deployment has NO effect.
+  if (process.env.DISABLE_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
     requestHeaders.set('x-user-name', 'dev-user');
     requestHeaders.set('x-user-role', 'admin');
     requestHeaders.set('x-user-id', 'dev-user-id');

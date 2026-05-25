@@ -23,7 +23,7 @@ import { checkSocialCredentials, postToInstagram, postToGoogleBusiness } from '@
 function verifyAuth(req: NextRequest): boolean {
   const auth   = req.headers.get('authorization') ?? '';
   const secret = process.env.CRON_SECRET ?? process.env.AGENT_SECRET ?? '';
-  if (!secret) return true; // dev mode — skip auth
+  if (!secret) return false; // fail closed — AGENT_SECRET must be set in production
   return auth === `Bearer ${secret}`;
 }
 

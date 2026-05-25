@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { runLeadHunter } from '@/agents/lead-hunter';
 import { notifyAdMachine } from '@/agents/ad-machine';
 import { logAgentRun, updateAgentRun } from '@/agents/tools/database';
 
+const TriggerSchema = z.object({
+  trigger: z.enum(['cron', 'manual']).default('cron'),
+});
+
 function verifyAuth(req: NextRequest): boolean {
   const auth   = req.headers.get('authorization') ?? '';
   const secret = process.env.CRON_SECRET ?? process.env.AGENT_SECRET ?? '';
-  if (!secret) return true; // dev mode — skip auth
+  if (!secret) return false; // fail closed — AGENT_SECRET must be set in production
   return auth === `Bearer ${secret}`;
 }
 
@@ -46,7 +51,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const trigger = (await req.json().catch(() => ({}))).trigger ?? 'cron';
+    const raw    = await req.json().catch(() => ({}));
+    const parsed = TriggerSchema.safeParse(raw);
+    const trigger = parsed.success ? parsed.data.trigger : 'cron';
     const result  = await runLeadHunter(trigger);
 
     if (result.imported > 0) {
