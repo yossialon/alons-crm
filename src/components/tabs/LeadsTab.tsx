@@ -13,22 +13,22 @@ import LeadAIInsights from '@/components/LeadAIInsights';
 // ── Status / Type / Potential config ─────────────────────────────────────────
 
 const STATUS_CFG = {
-  new:       { label: 'New',       bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-500',   activePill: 'bg-blue-600 text-white border-blue-600'   },
-  contacted: { label: 'Contacted', bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200',  dot: 'bg-amber-500',  activePill: 'bg-amber-500 text-white border-amber-500'  },
-  qualified: { label: 'Qualified', bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200',  dot: 'bg-green-500',  activePill: 'bg-green-600 text-white border-green-600'  },
-  closed:    { label: 'Closed',    bg: 'bg-zinc-100',  text: 'text-zinc-500',   border: 'border-zinc-200',   dot: 'bg-zinc-400',   activePill: 'bg-zinc-600 text-white border-zinc-600'   },
+  new:       { label: 'New',       bg: 'bg-info-50   dark:bg-info-900/20',   text: 'text-info-700   dark:text-info-300',   border: 'border-info-200   dark:border-info-800',   dot: 'bg-info-500',   activePill: 'bg-info-600   text-white border-info-600'   },
+  contacted: { label: 'Contacted', bg: 'bg-amber-50  dark:bg-amber-900/20',  text: 'text-amber-700  dark:text-amber-300',  border: 'border-amber-200  dark:border-amber-800',  dot: 'bg-amber-500',  activePill: 'bg-amber-500  text-white border-amber-500'  },
+  qualified: { label: 'Qualified', bg: 'bg-brand-50  dark:bg-brand-900/20',  text: 'text-brand-800  dark:text-brand-300',  border: 'border-brand-200  dark:border-brand-800',  dot: 'bg-brand-500',  activePill: 'bg-brand-600  text-white border-brand-600'  },
+  closed:    { label: 'Closed',    bg: 'bg-zinc-100  dark:bg-zinc-800',      text: 'text-zinc-500   dark:text-zinc-400',   border: 'border-zinc-200   dark:border-zinc-700',   dot: 'bg-zinc-400',   activePill: 'bg-zinc-600   text-white border-zinc-600'   },
 } as const;
 
 const TYPE_CFG: Record<string, { bg: string; text: string; border: string; icon: string }> = {
-  Homeowner:  { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', icon: '🏠' },
-  Contractor: { bg: 'bg-cyan-50',   text: 'text-cyan-700',   border: 'border-cyan-200',   icon: '🔨' },
-  Developer:  { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', icon: '🏗️' },
+  Homeowner:  { bg: 'bg-purple-50 dark:bg-purple-900/20', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-800', icon: '🏠' },
+  Contractor: { bg: 'bg-info-50   dark:bg-info-900/20',   text: 'text-info-700   dark:text-info-300',   border: 'border-info-200   dark:border-info-800',   icon: '🔨' },
+  Developer:  { bg: 'bg-amber-50  dark:bg-amber-900/20',  text: 'text-amber-700  dark:text-amber-300',  border: 'border-amber-200  dark:border-amber-800',  icon: '🏗️' },
 };
 
 const POTENTIAL_CFG: Record<string, { bg: string; text: string; label: string; arrow: string }> = {
-  high:   { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'High',   arrow: '↑' },
-  medium: { bg: 'bg-amber-50',   text: 'text-amber-700',   label: 'Medium', arrow: '→' },
-  low:    { bg: 'bg-zinc-100',   text: 'text-zinc-500',    label: 'Low',    arrow: '↓' },
+  high:   { bg: 'bg-brand-50 dark:bg-brand-900/20', text: 'text-brand-700 dark:text-brand-400', label: 'High',   arrow: '↑' },
+  medium: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400', label: 'Medium', arrow: '→' },
+  low:    { bg: 'bg-zinc-100 dark:bg-zinc-800',     text: 'text-zinc-500 dark:text-zinc-400',   label: 'Low',    arrow: '↓' },
 };
 
 const STATUS_KEYS = ['new', 'contacted', 'qualified', 'closed'] as const;

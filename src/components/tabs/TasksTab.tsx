@@ -184,6 +184,25 @@ export default function TasksTab() {
         </button>
       </div>
 
+      {/* Completion progress */}
+      {tasks.length > 0 && (
+        <div className="card px-4 py-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">Completion</span>
+            <span className="text-[11px] font-bold tabular-nums value-mono">
+              {Math.round((done.length / tasks.length) * 100)}%
+            </span>
+          </div>
+          <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.round((done.length / tasks.length) * 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-hint mt-1.5">{done.length} of {tasks.length} tasks done</p>
+        </div>
+      )}
+
       {/* Quick-add form */}
       {showForm && (
         <div className="card p-4 space-y-3 animate-fade-in">

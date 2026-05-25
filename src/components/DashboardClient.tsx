@@ -14,8 +14,15 @@ import { Settings, UserCheck } from 'lucide-react';
 
 // ── Skeleton fallback used while each lazy tab chunk loads ────────────────────
 const TabSkeleton = () => (
-  <div className="animate-pulse space-y-4 p-6">
-    {[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />)}
+  <div className="p-4 sm:p-6 space-y-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-24 rounded-[12px]" />)}
+    </div>
+    <div className="skeleton h-40 rounded-[12px]" />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="skeleton h-48 rounded-[12px]" />
+      <div className="skeleton h-48 rounded-[12px]" />
+    </div>
   </div>
 );
 
@@ -265,13 +272,13 @@ export default function DashboardPage() {
 function PlaceholderPage({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-      <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-5">
+      <div className="w-16 h-16 rounded-[16px] bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-500 mb-5">
         {icon}
       </div>
-      <h2 className="text-xl font-bold text-slate-800 mb-2">{title}</h2>
-      <p className="text-sm text-slate-500 max-w-sm">{desc}</p>
-      <div className="mt-6 px-4 py-2 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200">
-        🚧 Under Construction
+      <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-100 mb-2">{title}</h2>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm leading-relaxed">{desc}</p>
+      <div className="mt-6 px-4 py-2 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs font-semibold border border-amber-200 dark:border-amber-800">
+        🚧 Coming soon
       </div>
     </div>
   );

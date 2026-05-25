@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Menu, Search, Bell, Sun, Moon, Plus } from 'lucide-react';
+import { Menu, Search, Bell, Sun, Moon } from 'lucide-react';
 import { useTab, AppTab } from '@/contexts/TabContext';
 
 /* ── Tab metadata ──────────────────────────────────────────────────────────── */
@@ -31,7 +31,7 @@ const NOTIFICATIONS = [
 
 /* ── Component ─────────────────────────────────────────────────────────────── */
 export default function Header() {
-  const { tab, setTab, headerAction, setSidebarOpen } = useTab();
+  const { tab, headerAction, setSidebarOpen } = useTab();
   const [searchVal,  setSearchVal]  = useState('');
   const [notifOpen,  setNotifOpen]  = useState(false);
   const [dark,       setDark]       = useState(false);
@@ -95,18 +95,8 @@ export default function Header() {
         />
       </div>
 
-      {/* Contextual action (injected by active tab) */}
+      {/* Contextual action injected by the active tab (e.g. + Add Lead on leads tab) */}
       {headerAction}
-
-      {/* New Lead — primary CTA shortcut */}
-      <button
-        onClick={() => setTab('leads')}
-        className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold
-                   text-white bg-brand hover:bg-brand-700 transition-colors shadow-sm"
-      >
-        <Plus size={13} />
-        New Lead
-      </button>
 
       {/* Dark mode toggle */}
       <button

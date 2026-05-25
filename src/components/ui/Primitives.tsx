@@ -9,7 +9,71 @@
 
 import { ReactNode } from 'react';
 import { ArrowRight, MapPin, Phone, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
+import type { FC, SVGProps } from 'react';
+type LucideIcon = FC<SVGProps<SVGSVGElement> & { size?: number; strokeWidth?: number }>;
 import { Lead } from '@/types';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 0. SectionHeader
+ * Consistent section title used inside cards and tab pages.
+ * ─────────────────────────────────────────────────────────────────────────────*/
+
+interface SectionHeaderProps {
+  title:    string;
+  count?:   number | string;
+  action?:  ReactNode;
+  icon?:    LucideIcon;
+  iconBg?:  string;
+  iconColor?: string;
+}
+
+export function SectionHeader({ title, count, action, icon: Icon, iconBg, iconColor }: SectionHeaderProps) {
+  return (
+    <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800">
+      <div className="flex items-center gap-2.5">
+        {Icon && iconBg && iconColor && (
+          <div className={`w-7 h-7 rounded-[8px] ${iconBg} flex items-center justify-center shrink-0`}>
+            <Icon size={14} className={iconColor} />
+          </div>
+        )}
+        <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">{title}</p>
+        {count !== undefined && (
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">{count}</span>
+        )}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 0b. EmptyState
+ * Centered empty-state block used when a list has no items.
+ * ─────────────────────────────────────────────────────────────────────────────*/
+
+interface EmptyStateProps {
+  icon?:     ReactNode;
+  title:     string;
+  body?:     string;
+  action?:   ReactNode;
+}
+
+export function EmptyState({ icon, title, body, action }: EmptyStateProps) {
+  return (
+    <div className="flex flex-col items-center justify-center py-14 px-6 text-center select-none">
+      {icon && (
+        <div className="w-12 h-12 rounded-[12px] bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4 text-zinc-300 dark:text-zinc-600">
+          {icon}
+        </div>
+      )}
+      <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-1">{title}</p>
+      {body && <p className="text-xs text-zinc-400 dark:text-zinc-500 max-w-xs leading-relaxed">{body}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
 
 /* ─────────────────────────────────────────────────────────────────────────────
  * 1. StatCard
