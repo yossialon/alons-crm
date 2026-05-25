@@ -3,6 +3,8 @@
 // Free tier: 3,000 emails/month, 100/day.
 // For testing without a verified domain use from: "onboarding@resend.dev"
 
+import { getAppUrl } from '@/lib/app-url';
+
 export interface SendEmailOptions {
   to:      string;
   subject: string;
@@ -45,11 +47,12 @@ export async function sendEmail(opts: SendEmailOptions): Promise<SendResult> {
 
 // Wrap plaintext body with open-tracking pixel and click-tracked links
 export function buildTrackedHtml(opts: {
-  body:       string;
-  sendId:     string;
-  appUrl:     string;
+  body:    string;
+  sendId:  string;
+  /** @deprecated appUrl is ignored — getAppUrl() is used automatically */
+  appUrl?: string;
 }): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? opts.appUrl;
+  const base = getAppUrl();
   const pixel = `<img src="${base}/api/track/open/${opts.sendId}" width="1" height="1" alt="" style="display:none" />`;
 
   // Wrap http/https links with click-tracking redirect

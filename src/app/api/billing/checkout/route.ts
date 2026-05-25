@@ -1,3 +1,4 @@
+import { getAppUrl } from '@/lib/app-url';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
@@ -46,13 +47,13 @@ export async function POST(req: NextRequest) {
     await supabase.from('organizations').update({ stripe_customer_id: customerId }).eq('id', org.id);
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/dashboard?billing=success`,
-    cancel_url:  `${appUrl}/dashboard?billing=cancelled`,
+    success_url: `${getAppUrl()}/dashboard?billing=success`,
+    cancel_url:  `${getAppUrl()}/dashboard?billing=cancelled`,
     metadata: { org_id: org.id },
     subscription_data: { metadata: { org_id: org.id } },
   });

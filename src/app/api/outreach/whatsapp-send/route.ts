@@ -1,34 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import { serverDb as supabase } from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { sendWhatsAppMessage } from '@/lib/meta';
 import { getSessionPayload } from '@/lib/session';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 // ── Input schema ──────────────────────────────────────────────────────────────
 const SendSchema = z.object({
   to:      z.string().min(7).max(20).regex(/^\+?[0-9\s\-().]+$/, 'Invalid phone number'),
   message: z.string().min(1).max(4096),
 });
-
-// ── Simple in-memory rate limiter (5 req / 60 s per IP) ──────────────────────
-// NOTE: stateless across serverless cold starts — upgrade to Upstash Redis for
-//       distributed rate limiting once traffic grows.
-const ratemap = new Map<string, { count: number; reset: number }>();
-const RATE_LIMIT   = 5;
-const RATE_WINDOW  = 60_000; // ms
-
-function checkRate(ip: string): boolean {
-  const now  = Date.now();
-  const slot = ratemap.get(ip);
-  if (!slot || now > slot.reset) {
-    ratemap.set(ip, { count: 1, reset: now + RATE_WINDOW });
-    return true;
-  }
-  if (slot.count >= RATE_LIMIT) return false;
-  slot.count++;
-  return true;
-}
 
 export async function POST(req: NextRequest) {
   // ── 1. Session auth — only authenticated users may send WhatsApp messages ──
@@ -37,9 +19,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // ── 2. Rate limit ─────────────────────────────────────────────────────────
+  // ── 2. Rate limit (Upstash Redis → ioredis → in-memory fallback) ─────────
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  if (!checkRate(ip)) {
+  const allowed = await checkRateLimit(`${ip}:whatsapp-send`, { windowMs: 60_000, max: 5 });
+  if (!allowed) {
     return NextResponse.json(
       { error: 'Too many requests — please wait before sending another message' },
       { status: 429 },

@@ -1,0 +1,38 @@
+# ── Deployment bloat ──────────────────────────────────────────────────────────
+# These files are never needed at Vercel build/runtime.
+
+# Large binaries / downloaded tooling in project root
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.bin
+*.dmg
+google-cloud-cli-*
+
+# Local data exports / seed files
+data/
+scripts/
+
+# Test / local tooling
+*.test.ts
+*.spec.ts
+**/__tests__/
+**/__mocks__/
+playwright-report/
+test-results/
+coverage/
+
+# Local config that should never deploy
+.env.local
+.env.*.local
+.env.sentry-build-plugin
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# Editor config
+.vscode/
+.idea/
+*.swp

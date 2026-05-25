@@ -3,8 +3,9 @@
 // Scores each lead ≥ LEAD_MIN_SCORE before importing.
 
 import { logAgentRun, updateAgentRun, leadExists, importLead } from '@/agents/tools/database';
-import { callClaude, callClaudeHaiku, callClaudeWithWebSearch } from '@/agents/tools/claude';
+import { callClaudeHaiku, callClaudeWithWebSearch } from '@/agents/tools/claude';
 import { alertOwner } from '@/agents/tools/whatsapp';
+import { searchPermitsByCounty } from '@/lib/permits';
 import type { LeadSource } from '@/agents/types';
 
 const MIN_SCORE = Number(process.env.LEAD_MIN_SCORE ?? '70');
@@ -52,34 +53,34 @@ async function searchGooglePlaces(): Promise<LeadSource[]> {
   return leads;
 }
 
-// ── Source 2: FL Permit Search via internal API ───────────────────────────────
+// ── Source 2: FL Permit Search via shared lib (direct call, no HTTP round-trip) ─
 async function searchPermits(): Promise<LeadSource[]> {
   const leads: LeadSource[] = [];
-  const BASE = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const counties = ['broward', 'miami-dade', 'palm-beach'];
+  // Three key South FL counties; each call is independent and external-API-based
+  const counties: Array<{ county: string; area: string }> = [
+    { county: 'broward',    area: 'Fort Lauderdale' },
+    { county: 'miami-dade', area: 'Miami' },
+    { county: 'palm-beach', area: 'Boca Raton' },
+  ];
 
-  for (const county of counties) {
-    try {
-      const res = await fetch(
-        `${BASE}/api/leads/search/permits?county=${county}&keyword=kitchen+cabinet+renovation`,
-        { headers: { Cookie: '' } },
-      );
-      if (!res.ok) continue;
-      const permits = await res.json() as { applicant?: string; owner?: string; address?: string; description?: string }[];
-
-      for (const p of (permits ?? []).slice(0, 3)) {
-        leads.push({
-          name:    p.applicant || p.owner || 'Homeowner',
-          address: p.address,
-          source:  `FL Permit — ${county}`,
-          score:   heuristicScore({ hasAddress: !!p.address, type: 'homeowner', hasPermit: true }),
-          notes:   p.description,
-        });
+  await Promise.allSettled(
+    counties.map(async ({ county, area }) => {
+      try {
+        const permits = await searchPermitsByCounty(county, area);
+        for (const p of permits.slice(0, 3)) {
+          leads.push({
+            name:    p.name,
+            address: p.notes,          // notes contains the address from the permit
+            source:  `FL Permit — ${county}`,
+            score:   heuristicScore({ hasAddress: true, type: 'homeowner', hasPermit: true }),
+            notes:   p.notes,
+          });
+        }
+      } catch (err) {
+        console.error(`[LeadHunter] Permit search error (${county}):`, err);
       }
-    } catch (err) {
-      console.error(`[LeadHunter] Permit search error (${county}):`, err);
-    }
-  }
+    }),
+  );
 
   return leads;
 }

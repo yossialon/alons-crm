@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { sendEmail } from '@/lib/outreach/email';
+import { getAppUrl } from '@/lib/app-url';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,8 +32,7 @@ export async function POST(req: NextRequest) {
         .single();
       if (error) throw new Error(error.message);
 
-      const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-      const resetUrl = `${appUrl}/reset-password?token=${token.id}`;
+      const resetUrl = `${getAppUrl()}/reset-password?token=${token.id}`;
 
       const html = `
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">

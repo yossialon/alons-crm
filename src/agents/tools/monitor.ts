@@ -1,24 +1,14 @@
 // ── System Monitor Tool ───────────────────────────────────────────────────────
 // Individual health check functions used by the Tech Manager agent.
 
-import { createClient } from '@supabase/supabase-js';
+import { serverDb } from '@/lib/supabase-server';
+import { getAppUrl } from '@/lib/app-url';
 import type { HealthCheck } from '@/agents/types';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const BASE_URL     = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-const ALERT_MS     = Number(process.env.TECH_ALERT_THRESHOLD_MS ?? '3000');
+const ALERT_MS = Number(process.env.TECH_ALERT_THRESHOLD_MS ?? '3000');
 
-function serviceClient() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!SUPABASE_URL || !key) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is required for monitor operations. ' +
-      'This module must only run server-side. ' +
-      'Never fall back to the public anon key.',
-    );
-  }
-  return createClient(SUPABASE_URL, key);
-}
+// Alias so existing code below keeps working
+const serviceClient = () => serverDb;
 
 async function timed<T>(fn: () => Promise<T>): Promise<{ result: T; ms: number }> {
   const t = Date.now();
@@ -47,7 +37,7 @@ export async function checkDbLatency(): Promise<HealthCheck> {
 export async function checkLeadApi(): Promise<HealthCheck> {
   try {
     const { ms, result } = await timed(() =>
-      fetch(`${BASE_URL}/api/leads`, {
+      fetch(`${getAppUrl()}/api/leads`, {
         headers: { Cookie: '' }, // unauthenticated — expect 401, not 500
       })
     );
@@ -131,7 +121,7 @@ export async function checkInstagramApi(): Promise<HealthCheck> {
 
 /** 6. Storage bucket reachability */
 export async function checkStorage(): Promise<HealthCheck> {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_URL) return { name: 'storage', status: 'warn', details: 'Supabase not configured' };
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) return { name: 'storage', status: 'warn', details: 'Supabase not configured' };
   try {
     const { ms } = await timed(() =>
       serviceClient().storage.from('brand-assets').list('', { limit: 1 })

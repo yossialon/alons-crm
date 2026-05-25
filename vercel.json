@@ -1,4 +1,7 @@
 {
+  "framework": "nextjs",
+  "regions": ["iad1"],
+
   "functions": {
     "src/app/api/cron/outreach/route.ts": {
       "maxDuration": 60
@@ -22,6 +25,7 @@
       "maxDuration": 120
     }
   },
+
   "crons": [
     {
       "path": "/api/agents/lead-hunter",

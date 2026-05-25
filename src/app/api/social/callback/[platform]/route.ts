@@ -1,15 +1,16 @@
+import { getAppUrl } from '@/lib/app-url';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getOrgId } from '@/lib/tenant';
 
 type Ctx = { params: Promise<{ platform: string }> };
 
-const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+
 
 async function handleMetaCallback(code: string, orgId: string) {
   const appId      = process.env.META_APP_ID ?? '';
   const appSecret  = process.env.META_APP_SECRET ?? '';
-  const redirectUri = `${APP_URL()}/api/social/callback/meta`;
+  const redirectUri = `${getAppUrl()}/api/social/callback/meta`;
 
   const tokenRes  = await fetch(
     `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`
@@ -72,7 +73,7 @@ async function handleMetaCallback(code: string, orgId: string) {
 async function handleLinkedInCallback(code: string, orgId: string) {
   const clientId     = process.env.LINKEDIN_CLIENT_ID ?? '';
   const clientSecret = process.env.LINKEDIN_CLIENT_SECRET ?? '';
-  const redirectUri  = `${APP_URL()}/api/social/callback/linkedin`;
+  const redirectUri  = `${getAppUrl()}/api/social/callback/linkedin`;
 
   const tokenRes  = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
     method: 'POST',
@@ -103,7 +104,7 @@ async function handleLinkedInCallback(code: string, orgId: string) {
 async function handleTikTokCallback(code: string, orgId: string) {
   const clientKey    = process.env.TIKTOK_CLIENT_KEY ?? '';
   const clientSecret = process.env.TIKTOK_CLIENT_SECRET ?? '';
-  const redirectUri  = `${APP_URL()}/api/social/callback/tiktok`;
+  const redirectUri  = `${getAppUrl()}/api/social/callback/tiktok`;
 
   const tokenRes  = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
     method: 'POST',
@@ -132,7 +133,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const error = searchParams.get('error');
 
   if (error || !code) {
-    return NextResponse.redirect(`${APP_URL()}/dashboard?social_error=${error ?? 'access_denied'}&tab=social`);
+    return NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=${error ?? 'access_denied'}&tab=social`);
   }
 
   const orgId = await getOrgId();
@@ -142,11 +143,11 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       case 'linkedin': await handleLinkedInCallback(code, orgId); break;
       case 'tiktok':   await handleTikTokCallback(code, orgId);   break;
       default:
-        return NextResponse.redirect(`${APP_URL()}/dashboard?social_error=unknown_platform&tab=social`);
+        return NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=unknown_platform&tab=social`);
     }
-    return NextResponse.redirect(`${APP_URL()}/dashboard?social_connected=${platform}&tab=social`);
+    return NextResponse.redirect(`${getAppUrl()}/dashboard?social_connected=${platform}&tab=social`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.redirect(`${APP_URL()}/dashboard?social_error=${encodeURIComponent(msg)}&tab=social`);
+    return NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=${encodeURIComponent(msg)}&tab=social`);
   }
 }
