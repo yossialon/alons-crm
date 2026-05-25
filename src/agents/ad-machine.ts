@@ -7,24 +7,12 @@ import { callClaude } from '@/agents/tools/claude';
 import { alertOwner } from '@/agents/tools/whatsapp';
 import { postToInstagram, postToGoogleBusiness } from '@/agents/tools/social';
 import { createGeoCampaign } from '@/agents/tools/meta-ads';
-import { createClient } from '@supabase/supabase-js';
+import serverDb from '@/lib/supabase-server';
 import type { CampaignRecommendation, CampaignLearning } from '@/agents/types';
 
 const ORG_ID      = process.env.ORG_ID ?? '00000000-0000-0000-0000-000000000001';
 const REVIEW_LINK = process.env.GOOGLE_REVIEW_LINK ?? '';
 
-function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is required for ad-machine operations. ' +
-      'This module must only run server-side. ' +
-      'Never fall back to the public anon key.',
-    );
-  }
-  return createClient(url, key);
-}
 
 // ── Job Completion: auto-post before/after to social ─────────────────────────
 export async function runJobCompletion(jobData: {
@@ -208,7 +196,7 @@ async function runLearningAnalysis(
   patterns:  CampaignLearning[];
   skipped:   boolean;
 }> {
-  const client = db();
+  const client = serverDb;
 
   // ── 1. Fetch last 8 weeks of historical recommendations ────────────────────
   const eightWeeksAgo = new Date(new Date(weekOf).getTime() - 8 * 7 * 86_400_000)
@@ -346,9 +334,9 @@ export async function runWeeklyReview(trigger: 'cron' | 'manual' = 'cron'): Prom
     // Gather stats from the DB
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
     const [jobsRes, leadsRes, msgsRes] = await Promise.all([
-      db().from('job_completions').select('id, created_at, lead_id').gte('created_at', weekAgo),
-      db().from('leads').select('id, status, source, created_at').eq('org_id', ORG_ID).gte('created_at', weekAgo),
-      db().from('social_messages').select('id, platform, direction, created_at').gte('created_at', weekAgo),
+      serverDb.from('job_completions').select('id, created_at, lead_id').gte('created_at', weekAgo),
+      serverDb.from('leads').select('id, status, source, created_at').eq('org_id', ORG_ID).gte('created_at', weekAgo),
+      serverDb.from('social_messages').select('id, platform, direction, created_at').gte('created_at', weekAgo),
     ]);
 
     const jobs  = jobsRes.data  ?? [];

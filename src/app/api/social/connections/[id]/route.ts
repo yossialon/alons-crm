@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -9,7 +9,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     const { id }  = await params;
     const orgId   = await getOrgId();
 
-    const { data: existing } = await supabase
+    const { data: existing } = await serverDb
       .from('social_connections')
       .select('id')
       .eq('id', id)
@@ -17,7 +17,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       .maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const { error } = await supabase
+    const { error } = await serverDb
       .from('social_connections')
       .delete()
       .eq('id', id)

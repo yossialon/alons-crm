@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { zodError } from '@/lib/api-utils';
 
@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if ('template_id'    in d)         updates.template_id   = d.template_id ?? null;
     if (d.channel       !== undefined) updates.channel       = d.channel;
 
-    const { data: row, error } = await supabase
+    const { data: row, error } = await serverDb
       .from('automation_rules')
       .update(updates)
       .eq('id', id)
@@ -55,7 +55,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
     const { id }  = await params;
     const orgId   = await getOrgId();
-    const { error } = await supabase
+    const { error } = await serverDb
       .from('automation_rules')
       .delete()
       .eq('id', id)

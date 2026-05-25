@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { sendInstagramDM } from '@/lib/meta';
 
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!msgId) return NextResponse.json({ error: 'Instagram not configured or send failed' }, { status: 500 });
 
   const orgId = await getOrgId();
-  await supabase.from('social_messages').insert({
+  await serverDb.from('social_messages').insert({
     org_id: orgId,
     platform: 'instagram',
     external_id: msgId,

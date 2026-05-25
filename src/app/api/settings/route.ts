@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function GET() {
   const orgId = await getOrgId();
-  const { data } = await supabase
+  const { data } = await serverDb
     .from('app_settings')
     .select('key, value')
     .eq('org_id', orgId);
@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const orgId = await getOrgId();
   const { key, value } = await req.json() as { key: string; value: string };
-  await supabase.from('app_settings').upsert(
+  await serverDb.from('app_settings').upsert(
     { org_id: orgId, key, value, updated_at: new Date().toISOString() },
     { onConflict: 'org_id,key' }
   );

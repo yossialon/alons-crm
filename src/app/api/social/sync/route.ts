@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function POST() {
   try {
     const orgId = await getOrgId();
-    const { data: connections } = await supabase
+    const { data: connections } = await serverDb
       .from('social_connections')
       .select('id, platform, account_id, access_token, page_id')
       .eq('org_id', orgId);
@@ -55,7 +55,7 @@ async function syncLinkedIn(
       const authorParts = (c.actor ?? '').split(':');
       const authorId    = authorParts[authorParts.length - 1] ?? c.actor;
 
-      const { data: inserted } = await supabase.from('social_messages').upsert({
+      const { data: inserted } = await serverDb.from('social_messages').upsert({
         org_id:       orgId,
         connection_id: conn.id,
         platform:     'linkedin',
@@ -98,7 +98,7 @@ async function syncTikTok(
     const commentsData = await commentsRes.json();
 
     for (const c of (commentsData.data?.comments ?? []) as { id: string; text: string; create_time: number; user?: { display_name: string } }[]) {
-      const { data: inserted } = await supabase.from('social_messages').upsert({
+      const { data: inserted } = await serverDb.from('social_messages').upsert({
         org_id:       orgId,
         connection_id: conn.id,
         platform:     'tiktok',

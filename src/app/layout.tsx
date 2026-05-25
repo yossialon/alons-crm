@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { DM_Sans, DM_Mono } from 'next/font/google';
+import MetaPixel from '@/components/MetaPixel';
 import './globals.css';
 
 const dmSans = DM_Sans({
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  width: 'device-width',
+  width:        'device-width',
   initialScale: 1,
   maximumScale: 1,
   themeColor: [
@@ -40,7 +41,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        {/*
+         * MetaPixel renders the fbevents.js <Script> and watches for
+         * pathname changes to fire PageView on client-side navigation.
+         * Pixel ID comes from NEXT_PUBLIC_META_PIXEL_ID — no hardcoding here.
+         */}
+        <MetaPixel />
+      </body>
     </html>
   );
 }

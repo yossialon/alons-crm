@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { zodError } from '@/lib/api-utils';
 
@@ -15,7 +15,7 @@ const Schema = z.object({
 export async function GET() {
   try {
     const orgId = await getOrgId();
-    const { data, error } = await supabase
+    const { data, error } = await serverDb
       .from('campaigns')
       .select('*, message_templates(name)')
       .eq('org_id', orgId)
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     const orgId = await getOrgId();
     const d     = parsed.data;
-    const { data: row, error } = await supabase
+    const { data: row, error } = await serverDb
       .from('campaigns')
       .insert({
         org_id:        orgId,

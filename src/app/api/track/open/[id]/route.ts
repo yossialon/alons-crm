@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   // Record first open only
   try {
-    const { data: updated } = await supabase
+    const { data: updated } = await serverDb
       .from('campaign_sends')
       .update({ opened_at: new Date().toISOString() })
       .eq('id', id)
@@ -23,13 +23,13 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
     if (updated && updated.length > 0) {
       const campaignId = updated[0].campaign_id as string;
-      const { data: camp } = await supabase
+      const { data: camp } = await serverDb
         .from('campaigns')
         .select('open_count')
         .eq('id', campaignId)
         .maybeSingle();
       if (camp) {
-        await supabase
+        await serverDb
           .from('campaigns')
           .update({ open_count: ((camp.open_count as number) ?? 0) + 1 })
           .eq('id', campaignId);

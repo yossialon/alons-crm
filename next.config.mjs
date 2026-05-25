@@ -17,11 +17,11 @@ const nextConfig = {
     // img-src:     CDN hostnames that next/image already allows
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",   // unsafe-eval required by Next.js dev; remove in hardened prod
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://connect.facebook.net",   // unsafe-eval required by Next.js dev; remove in hardened prod
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://*.supabase.co https://graph.facebook.com https://scontent.cdninstagram.com https://lh3.googleusercontent.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://graph.facebook.com https://scontent.cdninstagram.com https://lh3.googleusercontent.com https://www.facebook.com",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://graph.facebook.com https://api.stripe.com https://*.sentry.io",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://graph.facebook.com https://www.facebook.com https://api.stripe.com https://*.sentry.io",
       "frame-src https://js.stripe.com https://hooks.stripe.com",
       "frame-ancestors 'none'",
       "form-action 'self'",

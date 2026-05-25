@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function GET(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const campaign = searchParams.get('campaign');
   const favOnly  = searchParams.get('favorites') === 'true';
 
-  let query = supabase
+  let query = serverDb
     .from('creative_templates')
     .select('*')
     .eq('org_id', orgId)
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const orgId = await getOrgId();
   const body = await req.json();
-  const { data, error } = await supabase
+  const { data, error } = await serverDb
     .from('creative_templates')
     .insert({ org_id: orgId, ...body })
     .select()

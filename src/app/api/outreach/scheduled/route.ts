@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { zodError } from '@/lib/api-utils';
 
@@ -16,7 +16,7 @@ const Schema = z.object({
 export async function GET() {
   try {
     const orgId = await getOrgId();
-    const { data, error } = await supabase
+    const { data, error } = await serverDb
       .from('scheduled_outreach')
       .select('*, leads(name)')
       .eq('org_id', orgId)
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return zodError(parsed.error);
 
     const orgId = await getOrgId();
-    const { data: row, error } = await supabase
+    const { data: row, error } = await serverDb
       .from('scheduled_outreach')
       .insert({ ...parsed.data, org_id: orgId })
       .select()

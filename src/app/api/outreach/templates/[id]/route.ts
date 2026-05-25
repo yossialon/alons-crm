@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { zodError } from '@/lib/api-utils';
 
@@ -21,7 +21,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if (!parsed.success) return zodError(parsed.error);
 
     const orgId = await getOrgId();
-    const { data: row, error } = await supabase
+    const { data: row, error } = await serverDb
       .from('message_templates')
       .update({ ...parsed.data, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -41,7 +41,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
     const { id }  = await params;
     const orgId   = await getOrgId();
-    const { data: existing } = await supabase
+    const { data: existing } = await serverDb
       .from('message_templates')
       .select('id')
       .eq('id', id)
@@ -49,7 +49,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       .maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const { error } = await supabase.from('message_templates').delete().eq('id', id).eq('org_id', orgId);
+    const { error } = await serverDb.from('message_templates').delete().eq('id', id).eq('org_id', orgId);
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true });
   } catch (err) {

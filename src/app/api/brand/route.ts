@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function GET() {
   const orgId = await getOrgId();
-  const { data } = await supabase
+  const { data } = await serverDb
     .from('brand_settings')
     .select('*')
     .eq('org_id', orgId)
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     logo_url?: string;
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await serverDb
     .from('brand_settings')
     .upsert({ org_id: orgId, ...body, updated_at: new Date().toISOString() }, { onConflict: 'org_id' })
     .select()

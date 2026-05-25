@@ -8,28 +8,20 @@ import { logAgentRun, updateAgentRun, getLastRun, getDashboardStats, getLatestHe
 import { alertOwner, sendDailyBriefing } from '@/agents/tools/whatsapp';
 import { runLeadHunter } from '@/agents/lead-hunter';
 import { runWeeklyReview } from '@/agents/ad-machine';
-import { createClient } from '@supabase/supabase-js';
+import serverDb from '@/lib/supabase-server';
 
 const ORG_ID     = process.env.ORG_ID      ?? '00000000-0000-0000-0000-000000000001';
 const OWNER_NAME = process.env.OWNER_NAME  ?? 'אלון';
 
-function db() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      'SUPABASE_SERVICE_ROLE_KEY is required for orchestrator operations. ' +
-      'This module must only run server-side. ' +
-      'Never fall back to the public anon key.',
-    );
-  }
-  return createClient(url, key);
+// ── Anthropic client — lazy singleton (for tool-use loop in handleBossChat) ──
+let _anthropic: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (_anthropic) return _anthropic;
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.CLAUDE_API_KEY;
+  if (!apiKey) throw new Error('[boss] ANTHROPIC_API_KEY is not set');
+  _anthropic = new Anthropic({ apiKey });
+  return _anthropic;
 }
-
-// ── Anthropic client (for tool-use loop in handleBossChat) ───────────────────
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.CLAUDE_API_KEY ?? '',
-});
 
 // ── Boss tool definitions ─────────────────────────────────────────────────────
 const BOSS_TOOLS: Anthropic.Tool[] = [
@@ -52,8 +44,8 @@ const BOSS_TOOLS: Anthropic.Tool[] = [
     name: 'updateLeadStatus',
     description:
       'Update the status of an existing lead. ' +
-      'Use when the user says "mark lead X as qualified / won / lost", "move lead to proposal", etc. ' +
-      'Valid statuses: new, contacted, qualified, proposal, won, lost.',
+      'Use when the user says "mark lead X as qualified / closed / contacted", etc. ' +
+      'Valid statuses: new, contacted, qualified, closed.',
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -61,7 +53,7 @@ const BOSS_TOOLS: Anthropic.Tool[] = [
         newStatus: {
           type: 'string',
           description: 'New status value',
-          enum: ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'],
+          enum: ['new', 'contacted', 'qualified', 'closed'],
         },
       },
       required: ['leadId', 'newStatus'],
@@ -111,7 +103,7 @@ async function executeTool(
         dueDate?: string;
         leadId?: string;
       };
-      const { data, error } = await db()
+      const { data, error } = await serverDb
         .from('tasks')
         .insert({
           org_id:   ORG_ID,
@@ -133,7 +125,7 @@ async function executeTool(
 
     case 'updateLeadStatus': {
       const { leadId, newStatus } = input as { leadId: string; newStatus: string };
-      const { error } = await db()
+      const { error } = await serverDb
         .from('leads')
         .update({ status: newStatus })
         .eq('id', leadId)
@@ -181,8 +173,8 @@ export async function runDailyBriefing(trigger: 'cron' | 'manual' = 'cron'): Pro
     // Gather data from all sources in parallel
     const [stats, leadsRes, tasksRes, lastLeadHunt, lastAdMachine, lastTech, healthChecks] = await Promise.all([
       getDashboardStats(),
-      db().from('leads').select('id, name, status, source, created_at').eq('org_id', ORG_ID).order('created_at', { ascending: false }).limit(5),
-      db().from('tasks').select('id, title, due_date, completed').eq('org_id', ORG_ID).eq('completed', false).order('due_date').limit(5),
+      serverDb.from('leads').select('id, name, status, source, created_at').eq('org_id', ORG_ID).order('created_at', { ascending: false }).limit(5),
+      serverDb.from('tasks').select('id, title, due_date, completed').eq('org_id', ORG_ID).eq('completed', false).order('due_date').limit(5),
       getLastRun('lead-hunter'),
       getLastRun('ad-machine'),
       getLastRun('tech-manager'),
@@ -258,13 +250,13 @@ export async function handleBossChat(
   const [stats, healthChecks, lastRunsRes, recentLeadsRes] = await Promise.all([
     getDashboardStats().catch(() => null),
     getLatestHealthChecks().catch(() => []),
-    db()
+    serverDb
       .from('agent_runs')
       .select('agent_name, status, summary, started_at')
       .eq('org_id', ORG_ID)
       .order('started_at', { ascending: false })
       .limit(8),
-    db()
+    serverDb
       .from('leads')
       .select('id, name, status, phone, email')
       .eq('org_id', ORG_ID)
@@ -320,7 +312,7 @@ Be concise, actionable, and data-driven. Never make up numbers — use the data 
   const MAX_ITERATIONS = 5;
   try {
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const response = await anthropic.messages.create({
+      const response = await getAnthropic().messages.create({
         model:      'claude-sonnet-4-5',
         max_tokens: 4096,
         system:     systemPrompt,

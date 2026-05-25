@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!text) return NextResponse.json({ error: 'text is required' }, { status: 400 });
 
     // Load the original message + connection token
-    const { data: msg } = await supabase
+    const { data: msg } = await serverDb
       .from('social_messages')
       .select('org_id, connection_id, platform, thread_id, social_connections!inner(access_token, page_id)')
       .eq('id', id)
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     const now = new Date().toISOString();
     await Promise.all([
-      supabase.from('social_messages').insert({
+      serverDb.from('social_messages').insert({
         org_id:       msg.org_id,
         connection_id: msg.connection_id,
         platform:     msg.platform,
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         replied_at:   now,
         raw:          {},
       }),
-      supabase.from('social_messages').update({ replied_at: now }).eq('id', id),
+      serverDb.from('social_messages').update({ replied_at: now }).eq('id', id),
     ]);
 
     return NextResponse.json({ ok: true, platform_sent: platformSent });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { verifyMetaSignature, getLeadAdData } from '@/lib/meta';
 import { computeLeadScore } from '@/lib/scoring';
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
         const score = computeLeadScore({ phone, email, source: 'Facebook Ad', notes });
         const potential: 'high' | 'medium' | 'low' = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
 
-        const { data: lead, error } = await supabase
+        const { data: lead, error } = await serverDb
           .from('leads')
           .insert({
             org_id: orgId,
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (!error && lead) {
-          await supabase.from('ad_leads').insert({
+          await serverDb.from('ad_leads').insert({
             org_id: orgId,
             lead_id: lead.id,
             platform: 'facebook',

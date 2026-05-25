@@ -59,13 +59,11 @@ export type SocialPlatform = 'facebook' | 'instagram' | 'whatsapp' | 'linkedin' 
 export interface SocialConnection {
   id:           string;
   org_id:       string;
-  platform:     SocialPlatform;
-  account_name: string;
-  account_id:   string;
+  platform:     'instagram' | 'facebook' | 'whatsapp' | 'google_business';
+  access_token: string;
   page_id:      string | null;
-  page_name:    string | null;
-  token_expiry: string | null;
-  metadata:     Record<string, unknown>;
+  account_id:   string | null;
+  expires_at:   string | null;
   created_at:   string;
   updated_at:   string;
 }

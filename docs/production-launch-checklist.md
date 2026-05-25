@@ -45,6 +45,14 @@ Set all of the following in Vercel → Settings → Environment Variables (Produ
 
 ## 2. Database Pre-launch
 
+### Step 0: Run the base schema FIRST
+In Supabase Dashboard → SQL Editor, run the entire contents of:
+`scripts/schema.sql`
+
+This creates the core tables (`organizations`, `users`, `leads`, `campaigns`,
+`campaign_sends`, `password_reset_tokens`, etc.) that the migrations depend on.
+Only THEN run the migrations below in order.
+
 ### Run migrations in order
 ```sql
 -- In Supabase dashboard → SQL Editor, run each file:
@@ -59,6 +67,8 @@ supabase/migrations/20260526_rls_policies.sql
 supabase/migrations/20260526_indexes.sql
 supabase/migrations/20260526_schema_fixes.sql
 supabase/migrations/20260527_billing_price_id.sql
+supabase/migrations/20260528_fix_subscription_status.sql
+supabase/migrations/20260528_rls_campaigns.sql
 ```
 
 ### Verify RLS

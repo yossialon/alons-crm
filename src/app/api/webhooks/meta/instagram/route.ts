@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { verifyMetaSignature, sendInstagramDM, generateSocialReply } from '@/lib/meta';
 
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     if (body.object !== 'instagram') return NextResponse.json({ ok: true });
 
     const orgId = await getOrgId();
-    const { data: setting } = await supabase
+    const { data: setting } = await serverDb
       .from('app_settings')
       .select('value')
       .eq('org_id', orgId)
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
           const senderId = sender.id;
 
           // Check if this sender is already a lead via instagram_interactions
-          const { data: interaction } = await supabase
+          const { data: interaction } = await serverDb
             .from('instagram_interactions')
             .select('lead_id, commenter_username')
             .eq('commenter_id', senderId)
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
           if (interaction && !interaction.lead_id) {
             // Create lead from DM reply
-            const { data: newLead } = await supabase
+            const { data: newLead } = await serverDb
               .from('leads')
               .insert({
                 org_id: orgId,
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
               .single();
 
             if (newLead) {
-              await supabase
+              await serverDb
                 .from('instagram_interactions')
                 .update({ lead_id: newLead.id })
                 .eq('commenter_id', senderId);
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
 
         const dmMsgId = await sendInstagramDM(commenterId, dmText);
 
-        await supabase.from('instagram_interactions').insert({
+        await serverDb.from('instagram_interactions').insert({
           org_id: orgId,
           commenter_username: commenterName,
           commenter_id: commenterId,

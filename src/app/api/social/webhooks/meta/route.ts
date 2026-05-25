@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function GET(req: NextRequest) {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   for (const entry of body.entry ?? []) {
     const pageId = entry.id;
 
-    const { data: conn } = await supabase
+    const { data: conn } = await serverDb
       .from('social_connections')
       .select('id, platform')
       .eq('org_id', orgId)
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     // Facebook / Instagram messages
     for (const msg of entry.messaging ?? []) {
       if (!msg.message || msg.message.is_echo) continue;
-      await supabase.from('social_messages').upsert({
+      await serverDb.from('social_messages').upsert({
         org_id:       orgId,
         connection_id: conn.id,
         platform:     conn.platform,
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
       for (const waMsg of val.messages ?? []) {
         if (waMsg.type !== 'text') continue;
-        await supabase.from('social_messages').upsert({
+        await serverDb.from('social_messages').upsert({
           org_id:       orgId,
           connection_id: conn.id,
           platform:     'whatsapp',

@@ -72,16 +72,16 @@ export function getPlanFromPriceId(priceId: string | null | undefined): PlanId {
  */
 export function normalizeSubStatus(
   status: Stripe.Subscription.Status,
-): 'trialing' | 'active' | 'past_due' | 'cancelled' | 'incomplete' | 'unpaid' {
+): 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete' | 'unpaid' {
   switch (status) {
     case 'active':              return 'active';
     case 'trialing':            return 'trialing';
     case 'past_due':            return 'past_due';
-    case 'canceled':            return 'cancelled';
+    case 'canceled':            return 'canceled';
     case 'incomplete':          return 'incomplete';
-    case 'incomplete_expired':  return 'cancelled';
+    case 'incomplete_expired':  return 'canceled';
     case 'unpaid':              return 'unpaid';
     case 'paused':              return 'past_due';
-    default:                    return 'cancelled';
+    default:                    return 'canceled';
   }
 }

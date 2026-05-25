@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function GET() {
   const orgId = await getOrgId();
-  const { data } = await supabase
+  const { data } = await serverDb
     .from('ad_leads')
     .select('*, leads(name, phone, email, status)')
     .eq('org_id', orgId)

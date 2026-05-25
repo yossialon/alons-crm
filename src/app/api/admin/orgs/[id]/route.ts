@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if ('seats_limit' in body)         updates.seats_limit = Number(body.seats_limit);
 
     if (Object.keys(updates).length > 1) {
-      const { error } = await supabase.from('organizations').update(updates).eq('id', id);
+      const { error } = await serverDb.from('organizations').update(updates).eq('id', id);
       if (error) throw new Error(error.message);
     }
 
@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
     const { id } = await params;
-    const { error } = await supabase.from('organizations').delete().eq('id', id);
+    const { error } = await serverDb.from('organizations').delete().eq('id', id);
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true });
   } catch (err) {

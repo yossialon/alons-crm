@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { sendEmail } from '@/lib/outreach/email';
 import { getAppUrl } from '@/lib/app-url';
 
@@ -12,20 +12,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
     }
 
-    const { data: user } = await supabase
+    const { data: user } = await serverDb
       .from('users')
       .select('id, name, email')
       .eq('email', email)
       .maybeSingle();
 
     if (user) {
-      await supabase
+      await serverDb
         .from('password_reset_tokens')
         .delete()
         .eq('user_id', user.id)
         .is('used_at', null);
 
-      const { data: token, error } = await supabase
+      const { data: token, error } = await serverDb
         .from('password_reset_tokens')
         .insert({ user_id: user.id })
         .select('id')

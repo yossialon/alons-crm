@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -8,7 +8,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const orgId = await getOrgId();
     const body = await req.json() as Record<string, unknown>;
 
-    const { data, error } = await supabase
+    const { data, error } = await serverDb
       .from('job_completions')
       .update(body)
       .eq('id', id)

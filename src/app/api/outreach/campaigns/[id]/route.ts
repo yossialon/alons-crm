@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { zodError } from '@/lib/api-utils';
 
@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if (d.target_filter !== undefined) updates.target_filter = d.target_filter;
     if ('scheduled_at'   in d)         updates.scheduled_at  = d.scheduled_at ?? null;
 
-    const { data: row, error } = await supabase
+    const { data: row, error } = await serverDb
       .from('campaigns')
       .update(updates)
       .eq('id', id)
@@ -51,7 +51,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
     const { id }  = await params;
     const orgId   = await getOrgId();
-    const { data: existing } = await supabase
+    const { data: existing } = await serverDb
       .from('campaigns')
       .select('id')
       .eq('id', id)
@@ -59,7 +59,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       .maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const { error } = await supabase.from('campaigns').delete().eq('id', id).eq('org_id', orgId);
+    const { error } = await serverDb.from('campaigns').delete().eq('id', id).eq('org_id', orgId);
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true });
   } catch (err) {

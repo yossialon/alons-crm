@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function GET() {
   try {
     const orgId = await getOrgId();
-    const { data, error } = await supabase
+    const { data, error } = await serverDb
       .from('job_completions')
       .select('*')
       .eq('org_id', orgId)
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       area: string;
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await serverDb
       .from('job_completions')
       .insert({
         org_id: orgId,

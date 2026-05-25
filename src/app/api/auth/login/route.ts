@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { createSessionToken, setSessionCookie } from '@/lib/session';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 
 const DELAY_MS = 500;
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, role: 'super_admin' });
     }
 
-    const { data: user } = await supabase
+    const { data: user } = await serverDb
       .from('users')
       .select('id, name, email, password_hash, role, org_id')
       .eq('email', email.toLowerCase())

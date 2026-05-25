@@ -1,6 +1,6 @@
 import { getAppUrl } from '@/lib/app-url';
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 type Ctx = { params: Promise<{ platform: string }> };
@@ -39,7 +39,7 @@ async function handleMetaCallback(code: string, orgId: string) {
       }),
     }).catch(() => {});
 
-    await supabase.from('social_connections').upsert({
+    await serverDb.from('social_connections').upsert({
       org_id:       orgId,
       platform:     'facebook',
       account_name: page.name,
@@ -55,7 +55,7 @@ async function handleMetaCallback(code: string, orgId: string) {
     const igRes  = await fetch(`https://graph.facebook.com/v21.0/${page.id}/instagram_accounts?access_token=${page.access_token}&fields=id,username`);
     const igData = await igRes.json();
     for (const ig of (igData.data ?? []) as { id: string; username: string }[]) {
-      await supabase.from('social_connections').upsert({
+      await serverDb.from('social_connections').upsert({
         org_id:       orgId,
         platform:     'instagram',
         account_name: ig.username,
@@ -90,7 +90,7 @@ async function handleLinkedInCallback(code: string, orgId: string) {
   const name    = `${profile.localizedFirstName ?? ''} ${profile.localizedLastName ?? ''}`.trim() || 'LinkedIn Account';
   const expiry  = tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null;
 
-  await supabase.from('social_connections').upsert({
+  await serverDb.from('social_connections').upsert({
     org_id:       orgId,
     platform:     'linkedin',
     account_name: name,
@@ -114,7 +114,7 @@ async function handleTikTokCallback(code: string, orgId: string) {
   const tokenData = await tokenRes.json();
   if (!tokenData.access_token) throw new Error(tokenData.error ?? 'Token exchange failed');
 
-  await supabase.from('social_connections').upsert({
+  await serverDb.from('social_connections').upsert({
     org_id:       orgId,
     platform:     'tiktok',
     account_name: tokenData.open_id ?? 'TikTok Account',
@@ -131,10 +131,28 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const { searchParams } = new URL(req.url);
   const code  = searchParams.get('code');
   const error = searchParams.get('error');
+  const state = searchParams.get('state') ?? '';
 
   if (error || !code) {
     return NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=${error ?? 'access_denied'}&tab=social`);
   }
+
+  // ── CSRF validation ────────────────────────────────────────────────────────
+  // The auth route embeds a per-request nonce as `${platform}:${nonce}` in the
+  // OAuth state parameter and stores the nonce in an httpOnly cookie.
+  // We verify both match before doing anything with the authorization code.
+  const [statePlatform, stateNonce] = state.split(':');
+  const cookieNonce = req.cookies.get('oauth_state')?.value;
+
+  if (!cookieNonce || !stateNonce || stateNonce !== cookieNonce || statePlatform !== platform) {
+    return NextResponse.json({ error: 'Invalid OAuth state — possible CSRF attack' }, { status: 400 });
+  }
+
+  // Clear the one-time nonce cookie immediately after validation
+  const clearCookie = (res: NextResponse) => {
+    res.cookies.set('oauth_state', '', { maxAge: 0, path: '/' });
+    return res;
+  };
 
   const orgId = await getOrgId();
   try {
@@ -143,11 +161,11 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       case 'linkedin': await handleLinkedInCallback(code, orgId); break;
       case 'tiktok':   await handleTikTokCallback(code, orgId);   break;
       default:
-        return NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=unknown_platform&tab=social`);
+        return clearCookie(NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=unknown_platform&tab=social`));
     }
-    return NextResponse.redirect(`${getAppUrl()}/dashboard?social_connected=${platform}&tab=social`);
+    return clearCookie(NextResponse.redirect(`${getAppUrl()}/dashboard?social_connected=${platform}&tab=social`));
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=${encodeURIComponent(msg)}&tab=social`);
+    return clearCookie(NextResponse.redirect(`${getAppUrl()}/dashboard?social_error=${encodeURIComponent(msg)}&tab=social`));
   }
 }

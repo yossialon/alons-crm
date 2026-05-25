@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionPayload } from '@/lib/session';
-import { randomUUID } from 'crypto';
+// Note: middleware runs in the Edge runtime — use the Web Crypto global, not Node's crypto module.
 
 const PUBLIC_PATHS = [
   '/login',
   '/signup',
   '/forgot-password',
   '/reset-password',
+  '/privacy',
+  '/data-deletion',
+  '/api/data-deletion',
+  '/api/tracking/',
   '/api/auth/',
   '/api/billing/webhook',
   '/api/track/',
@@ -27,7 +31,7 @@ export async function middleware(req: NextRequest) {
   // ── Request ID ─────────────────────────────────────────────────────────────
   // Propagated as x-request-id so it appears in every server log line and
   // in error responses — correlates browser, CDN, and function logs.
-  const requestId = req.headers.get('x-request-id') ?? randomUUID();
+  const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID();
 
   if (isPublic(pathname)) {
     const res = NextResponse.next();

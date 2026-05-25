@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { verifyMetaSignature, sendWhatsAppMessage, generateSocialReply } from '@/lib/meta';
 
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const orgId = await getOrgId();
 
-    const { data: setting } = await supabase
+    const { data: setting } = await serverDb
       .from('app_settings')
       .select('value')
       .eq('org_id', orgId)
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
           const senderName = contacts?.[0]?.profile?.name ?? 'WhatsApp User';
           const isHot = HOT_KEYWORDS.some(k => text.toLowerCase().includes(k));
 
-          const { data: existingLead } = await supabase
+          const { data: existingLead } = await serverDb
             .from('leads')
             .select('id, name')
             .eq('phone', phone)
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
           let leadId = existingLead?.id ?? null;
 
           if (!existingLead) {
-            const { data: newLead } = await supabase
+            const { data: newLead } = await serverDb
               .from('leads')
               .insert({
                 org_id: orgId,
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
             leadId = newLead?.id ?? null;
           }
 
-          await supabase.from('social_messages').insert({
+          await serverDb.from('social_messages').insert({
             org_id: orgId,
             platform: 'whatsapp',
             external_id: msg.id,
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
             const msgId = await sendWhatsAppMessage(phone, replyText);
 
             if (msgId) {
-              await supabase.from('social_messages').insert({
+              await serverDb.from('social_messages').insert({
                 org_id: orgId,
                 platform: 'whatsapp',
                 external_id: msgId,

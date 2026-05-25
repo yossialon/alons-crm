@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 export async function GET(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     const unreadOnly = searchParams.get('unread') === 'true';
     const threadId   = searchParams.get('thread_id');
 
-    let query = supabase
+    let query = serverDb
       .from('social_messages')
       .select('*')
       .eq('org_id', orgId)
@@ -48,14 +48,14 @@ export async function PATCH(req: NextRequest) {
     const { id, thread_id } = await req.json().catch(() => ({}));
 
     if (thread_id) {
-      await supabase
+      await serverDb
         .from('social_messages')
         .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('org_id', orgId)
         .eq('thread_id', thread_id)
         .eq('is_read', false);
     } else if (id) {
-      await supabase
+      await serverDb
         .from('social_messages')
         .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('id', id)

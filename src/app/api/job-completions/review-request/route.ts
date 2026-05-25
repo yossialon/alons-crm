@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 
 const GOOGLE_REVIEW_LINK = process.env.GOOGLE_REVIEW_LINK ?? '';
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Log to DB
-    await supabase.from('review_requests').insert({
+    await serverDb.from('review_requests').insert({
       org_id: orgId,
       job_completion_id,
       lead_id: lead_id || null,
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Mark job completion as review sent
-    await supabase
+    await serverDb
       .from('job_completions')
       .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() })
       .eq('id', job_completion_id);
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     status = 'failed';
     errorMsg = String(err);
     // Still log the attempt — fire and forget
-    void supabase.from('review_requests').insert({
+    void serverDb.from('review_requests').insert({
       org_id: orgId,
       job_completion_id,
       lead_id: lead_id || null,

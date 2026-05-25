@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import serverDb from '@/lib/supabase-server';
 import { getOrgId } from '@/lib/tenant';
 import { sendEmail, buildTrackedHtml } from '@/lib/outreach/email';
 import { sendSms } from '@/lib/outreach/sms';
@@ -24,7 +24,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
     const { id } = await params;
     const orgId  = await getOrgId();
 
-    const { data: campaign } = await supabase
+    const { data: campaign } = await serverDb
       .from('campaigns')
       .select('id, name, channel, template_id, status, target_filter, sent_count')
       .eq('id', id)
@@ -36,7 +36,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
     if (campaign.status === 'sent')    return NextResponse.json({ error: 'Campaign already sent' }, { status: 409 });
     if (!campaign.template_id)         return NextResponse.json({ error: 'No template assigned' }, { status: 422 });
 
-    const { data: template } = await supabase
+    const { data: template } = await serverDb
       .from('message_templates')
       .select('subject, body')
       .eq('id', campaign.template_id as string)
@@ -44,11 +44,11 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
       .maybeSingle();
     if (!template) return NextResponse.json({ error: 'Template not found' }, { status: 404 });
 
-    await supabase.from('campaigns').update({ status: 'sending', updated_at: new Date().toISOString() }).eq('id', id);
+    await serverDb.from('campaigns').update({ status: 'sending', updated_at: new Date().toISOString() }).eq('id', id);
 
     const filter = (campaign.target_filter ?? {}) as Record<string, unknown>;
 
-    const { data: leads } = await supabase
+    const { data: leads } = await serverDb
       .from('leads')
       .select('*')
       .eq('org_id', orgId)
@@ -60,7 +60,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
     let failed = 0;
 
     for (const lead of targets) {
-      const { data: existing } = await supabase
+      const { data: existing } = await serverDb
         .from('campaign_sends')
         .select('id')
         .eq('campaign_id', id)
@@ -72,7 +72,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
       const body    = interpolate((template as { body: string }).body, vars);
       const subject = interpolate((template as { subject: string }).subject || (campaign as { name: string }).name, vars);
 
-      const { data: sendRow } = await supabase
+      const { data: sendRow } = await serverDb
         .from('campaign_sends')
         .insert({ org_id: orgId, campaign_id: id, lead_id: lead.id })
         .select('id')
@@ -86,7 +86,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
       } else if (campaign.channel === 'sms') {
         result = await sendSms({ to: lead.phone, body });
       } else if (campaign.channel === 'whatsapp') {
-        const { data: conn } = await supabase
+        const { data: conn } = await serverDb
           .from('social_connections')
           .select('access_token, page_id')
           .eq('org_id', orgId)
@@ -106,7 +106,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
         result = { ok: false, error: 'Unknown channel' };
       }
 
-      await supabase.from('campaign_sends').update({
+      await serverDb.from('campaign_sends').update({
         status:  result.ok ? 'sent' : 'failed',
         sent_at: result.ok ? new Date().toISOString() : null,
         error:   result.error ?? null,
@@ -115,7 +115,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
       result.ok ? sent++ : failed++;
     }
 
-    await supabase.from('campaigns').update({
+    await serverDb.from('campaigns').update({
       status:     'sent',
       sent_count: ((campaign.sent_count as number) ?? 0) + sent,
       updated_at: new Date().toISOString(),

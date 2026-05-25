@@ -9,7 +9,7 @@ const IG_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ?? '';
 
 /** Verify Meta webhook signature */
 export function verifyMetaSignature(body: string, signature: string): boolean {
-  if (!APP_SECRET) return true; // dev mode — skip verification
+  if (!APP_SECRET) return false; // reject all requests when APP_SECRET is not configured
   const expected = 'sha256=' + crypto.createHmac('sha256', APP_SECRET).update(body).digest('hex');
   try {
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
