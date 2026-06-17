@@ -130,7 +130,7 @@ export async function callClaudeHaiku(messages: Message[], system?: string): Pro
 
   const res = await withRetry(
     () => getClient().messages.create({
-      model:      'claude-haiku-4-5-20251001',
+      model:      'claude-haiku-4-5', // FIXED: removed stale date-versioned ID
       max_tokens: 2048,
       ...(system ? { system } : {}),
       messages:   safe,
@@ -154,7 +154,7 @@ export async function callClaude(messages: Message[], system?: string): Promise<
 
   const res = await withRetry(
     () => getClient().messages.create({
-      model:      'claude-sonnet-4-5',
+      model:      'claude-sonnet-4-6', // FIXED: upgraded to claude-sonnet-4-6
       max_tokens: 4096,
       ...(system ? { system } : {}),
       messages:   safe,
@@ -178,7 +178,7 @@ export async function callClaudeWithWebSearch(prompt: string, system?: string): 
     : prompt;
 
   const body: Record<string, unknown> = {
-    model:      'claude-sonnet-4-5',
+    model:      'claude-sonnet-4-6', // FIXED: upgraded to claude-sonnet-4-6
     max_tokens: 4096,
     messages:   [{ role: 'user', content: truncated }],
     betas:      ['web_search_20250305'],

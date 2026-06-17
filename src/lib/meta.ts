@@ -119,7 +119,7 @@ Write only the reply message, nothing else.`;
       'x-api-key': CLAUDE_KEY,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-sonnet-4-6', // FIXED: upgraded to claude-sonnet-4-6
       max_tokens: 200,
       messages: [{ role: 'user', content: prompt }],
     }),

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
-const MODEL = 'claude-sonnet-4-5';
+const MODEL = 'claude-sonnet-4-6'; // FIXED: upgraded to claude-sonnet-4-6
 
 export async function POST(req: NextRequest) {
   if (!CLAUDE_API_KEY) return NextResponse.json({ error: 'AI not configured' }, { status: 500 });

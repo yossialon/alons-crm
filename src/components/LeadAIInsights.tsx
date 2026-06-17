@@ -75,7 +75,7 @@ export default function LeadAIInsights({ lead }: { lead: Lead }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model:      'claude-sonnet-4-5-20250929',
+          model:      'claude-sonnet-4-6', // FIXED: upgraded from stale date-versioned ID
           max_tokens: 450,
           messages:   [{ role: 'user', content: buildPrompt(lead) }],
         }),

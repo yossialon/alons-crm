@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { model?: string; messages?: unknown[]; max_tokens?: number } & Record<string, unknown>;
+  let body: { model?: string; messages?: unknown[]; max_tokens?: number; betas?: string[] } & Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -46,15 +46,21 @@ export async function POST(req: NextRequest) {
     },
     async (span) => {
       try {
+        // FIXED: only add anthropic-beta header when the caller explicitly requests betas.
+        // Forwarding web-search on every request caused unnecessary 400s for non-search calls.
+        const upstreamHeaders: Record<string, string> = {
+          'Content-Type':      'application/json',
+          'anthropic-version': '2023-06-01',
+          'x-api-key':         apiKey,
+        };
+        if (body.betas && Array.isArray(body.betas) && body.betas.length > 0) {
+          upstreamHeaders['anthropic-beta'] = body.betas.join(',');
+        }
+
         const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'anthropic-version': '2023-06-01',
-            'anthropic-beta': 'web-search-2025-03-05',
-            'x-api-key': apiKey,
-          },
-          body: JSON.stringify(body),
+          method:  'POST',
+          headers: upstreamHeaders,
+          body:    JSON.stringify(body),
         });
 
         const data = (await upstream.json()) as {

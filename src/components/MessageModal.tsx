@@ -83,7 +83,7 @@ export default function MessageModal({ lead, onClose }: { lead: MsgLead; onClose
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model:      'claude-sonnet-4-5-20250929',
+          model:      'claude-sonnet-4-6', // FIXED: upgraded from stale date-versioned ID
           max_tokens: ch === 'sms' ? 100 : ch === 'call_script' ? 500 : 350,
           messages:   [{ role: 'user', content: buildPrompt(lead, ch) }],
         }),

@@ -28,25 +28,23 @@ const TabSkeleton = () => (
 
 // ── Lazy-loaded tab components ────────────────────────────────────────────────
 // Each tab is its own JS chunk — only the active tab's code is downloaded.
-// Tabs that are used on first load (dashboard, leads, kanban) get slightly
-// higher priority by being listed first; others load on demand.
-const opts = { loading: () => <TabSkeleton /> };
-
-const DashboardTab      = dynamic(() => import('@/components/tabs/DashboardTab'),      opts);
-const LeadsTab          = dynamic(() => import('@/components/tabs/LeadsTab'),           opts);
-const KanbanTab         = dynamic(() => import('@/components/tabs/KanbanTab'),          opts);
-const TasksTab          = dynamic(() => import('@/components/tabs/TasksTab'),           opts);
-const SocialTab         = dynamic(() => import('@/components/tabs/SocialTab'),          opts);
-const FindLeadsTab      = dynamic(() => import('@/components/tabs/FindLeadsTab'),       opts);
-const LeadAuditTab      = dynamic(() => import('@/components/tabs/LeadAuditTab'),       opts);
-const SuppliersTab      = dynamic(() => import('@/components/tabs/SuppliersTab'),       opts);
-const ProjectsTab       = dynamic(() => import('@/components/tabs/ProjectsTab'),        opts);
-const AnalyticsTab      = dynamic(() => import('@/components/tabs/AnalyticsTab'),       opts);
-const CustomersTab      = dynamic(() => import('@/components/tabs/CustomersTab'),       opts);
-const OutreachTab       = dynamic(() => import('@/components/tabs/OutreachTab'),        opts);
-const MarketingTab      = dynamic(() => import('@/components/tabs/MarketingTab'),       opts);
-const CreativeStudioTab = dynamic(() => import('@/components/tabs/CreativeStudioTab'),  opts);
-const SettingsTab       = dynamic(() => import('@/components/tabs/SettingsTab'),        opts);
+// FIXED: Next.js 15 requires dynamic() options to be inline object literals,
+// not a shared variable. Each call gets its own object.
+const DashboardTab      = dynamic(() => import('@/components/tabs/DashboardTab'),      { loading: () => <TabSkeleton /> });
+const LeadsTab          = dynamic(() => import('@/components/tabs/LeadsTab'),           { loading: () => <TabSkeleton /> });
+const KanbanTab         = dynamic(() => import('@/components/tabs/KanbanTab'),          { loading: () => <TabSkeleton /> });
+const TasksTab          = dynamic(() => import('@/components/tabs/TasksTab'),           { loading: () => <TabSkeleton /> });
+const SocialTab         = dynamic(() => import('@/components/tabs/SocialTab'),          { loading: () => <TabSkeleton /> });
+const FindLeadsTab      = dynamic(() => import('@/components/tabs/FindLeadsTab'),       { loading: () => <TabSkeleton /> });
+const LeadAuditTab      = dynamic(() => import('@/components/tabs/LeadAuditTab'),       { loading: () => <TabSkeleton /> });
+const SuppliersTab      = dynamic(() => import('@/components/tabs/SuppliersTab'),       { loading: () => <TabSkeleton /> });
+const ProjectsTab       = dynamic(() => import('@/components/tabs/ProjectsTab'),        { loading: () => <TabSkeleton /> });
+const AnalyticsTab      = dynamic(() => import('@/components/tabs/AnalyticsTab'),       { loading: () => <TabSkeleton /> });
+const CustomersTab      = dynamic(() => import('@/components/tabs/CustomersTab'),       { loading: () => <TabSkeleton /> });
+const OutreachTab       = dynamic(() => import('@/components/tabs/OutreachTab'),        { loading: () => <TabSkeleton /> });
+const MarketingTab      = dynamic(() => import('@/components/tabs/MarketingTab'),       { loading: () => <TabSkeleton /> });
+const CreativeStudioTab = dynamic(() => import('@/components/tabs/CreativeStudioTab'),  { loading: () => <TabSkeleton /> });
+const SettingsTab       = dynamic(() => import('@/components/tabs/SettingsTab'),        { loading: () => <TabSkeleton /> });
 
 // Modals are also lazy — they're only ever opened by user action
 const LeadModal         = dynamic(() => import('@/components/LeadModal'));

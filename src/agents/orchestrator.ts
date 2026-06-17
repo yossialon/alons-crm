@@ -313,7 +313,7 @@ Be concise, actionable, and data-driven. Never make up numbers — use the data 
   try {
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       const response = await getAnthropic().messages.create({
-        model:      'claude-sonnet-4-5',
+        model:      'claude-sonnet-4-6', // FIXED: upgraded to claude-sonnet-4-6
         max_tokens: 4096,
         system:     systemPrompt,
         tools:      BOSS_TOOLS,

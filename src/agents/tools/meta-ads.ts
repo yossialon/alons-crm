@@ -22,7 +22,7 @@ import { alertOwner }      from '@/agents/tools/whatsapp';
 const AD_ACCOUNT_ID           = process.env.META_AD_ACCOUNT_ID            ?? '';
 const ACCESS_TOKEN            = process.env.META_ACCESS_TOKEN             ?? '';
 const PAGE_ID                 = process.env.META_PAGE_ID                  ?? '';
-const PIXEL_ID                = process.env.META_PIXEL_ID                 ?? '';
+const PIXEL_ID                = process.env.META_PIXEL_ID ?? process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '';
 const RETARGETING_AUDIENCE_ID = process.env.META_RETARGETING_AUDIENCE_ID  ?? '';
 const GOOGLE_KEY              = process.env.GOOGLE_PLACES_API_KEY         ?? '';
 

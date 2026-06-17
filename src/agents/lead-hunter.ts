@@ -261,7 +261,7 @@ Return ONLY a valid JSON array — one entry per lead, in the same order as the 
       metadata: {
         ai_scoring: {
           status:       'success',
-          model:        'claude-haiku-4-5-20251001',
+          model:        'claude-haiku-4-5', // FIXED: removed stale date-versioned ID
           leads_scored: aiScores.length,
           duration_ms:  durationMs,
           scored_at:    startedAt,
